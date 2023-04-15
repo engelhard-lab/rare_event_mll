@@ -1,12 +1,5 @@
 import numpy as np
-
-N_PATIENTS = 10000
-N_FEATURES = 100
-RANDOM_SEED = 2023
-STEP_SIZE = 1e-3
-
-EVENT_RATE = 0.01
-SIMILARITY = 0.95
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -19,26 +12,22 @@ def main():
 	print('Correlation between events: %.3f' % np.corrcoef(e1, e2)[0, 1])
 
 
-def generate_data(plot=False):
-
-	rs = np.random.RandomState(RANDOM_SEED)
+def generate_data(n_patients, n_features, event_rate, similarity,
+				  random_seed=2023, step_size=1e-3, print_output=True,
+				  plot=False):
+	rs = np.random.RandomState(random_seed)
 
 	# generate N_FEATURES-dimensional feature vector for N_PATIENTS
-	x = rs.randn(N_PATIENTS, N_FEATURES)
+	x = rs.randn(n_patients, n_features)
 
 	# generate coefficient vectors for events 1 and 2
-	u1, u2 = generate_vectors_by_similarity(rs, N_FEATURES, SIMILARITY)
+	u1, u2 = generate_vectors_by_similarity(rs, n_features, similarity)
 
 	# find logit offset that gives the desired event rate
 	offset = find_offset(
 		rs,
-		np.dot(x, normed_uniform(rs, N_FEATURES)),
-		EVENT_RATE,
-		STEP_SIZE
+		np.dot(x, normed_uniform(rs, n_features)), event_rate, step_size
 	)
-
-	# print similarity between u1 and u2
-	print('Dot product of u1 and u2: %.2f' % np.dot(u1, u2))
 
 	# calculate logits for each event
 	l1 = np.dot(x, u1) - offset
@@ -54,8 +43,6 @@ def generate_data(plot=False):
 
 	if plot:
 
-		import matplotlib.pyplot as plt
-
 		fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 4))
 
 		ax[0].hist(l1, alpha=.5, bins=20, label='Event 1')
@@ -70,7 +57,12 @@ def generate_data(plot=False):
 
 		plt.show()
 
-	return x, e1, e2
+	if print_output:
+		print('Dot product of u1 and u2: %.2f' % np.dot(u1, u2))
+		print('Avg prob')
+		print(np.mean([p1[i] for i in range(len(p1)) if e1[i] == 1]) / np.mean(p1))
+		print(np.mean([p1[i] for i in range(len(p1)) if e2[i] == 1]) / np.mean(p1))
+	return x, e1, e2, u1, u2
 
 
 def generate_vectors_by_similarity(rs, n, s):
@@ -103,7 +95,8 @@ def find_offset(rs, logits, event_rate, step_size):
 
 
 def normed_uniform(rs, n):
-	return normalize(rs.rand(n) - .5)
+	return normalize(rs.normal(loc=0, scale=10, size=n))
+	# return normalize(rs.rand(n) - .5)
 
 
 def bernoulli_draw(rs, p):
