@@ -18,7 +18,7 @@ def main():
 	print('Rate of co-occurrence: %.3f' % np.mean(e1 & e2))
 	print('Correlation between events: %.3f' % np.corrcoef(e1, e2)[0, 1])
 
-	x, e1, e2 = generate_data_shared_features(1, 5, shared_second_layer_weights=True, plot=True)
+	x, e1, e2 = generate_data_shared_features(2, 38, shared_second_layer_weights=True, plot=True)
 
 	print('Rate of event 1: %.3f' % np.mean(e1))
 	print('Rate of event 2: %.3f' % np.mean(e2))
@@ -44,7 +44,7 @@ def generate_data_shared_features(
 	#W = rs.randn(n_features, n_random_features)
 	W = glorot_uniform(rs, n_features, n_random_features)
 
-	h = sigmoid(x @ W)
+	h = relu(x @ W)
 
 	# generate coefficient vector for second layer
 	c1 = glorot_uniform(rs, n_random_features, 1)
