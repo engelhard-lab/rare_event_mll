@@ -210,7 +210,3 @@ def normalize(v):
 
 def relu(v):
 	return np.maximum(v, 0)
-
-
-if __name__ == '__main__':
-	main()
