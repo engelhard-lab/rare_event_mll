@@ -1,7 +1,7 @@
 import pandas as pd
 import seaborn as sns
 
-results = pd.read_csv('results/results.csv')
+results = pd.read_csv('sklearn/results.csv')
 results = results.drop(columns=['n', 'p', 'er'])
 
 results = pd.melt(results, id_vars=['activation', 'sim', 'iter'])
