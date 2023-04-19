@@ -1,0 +1,18 @@
+# data generation
+N_PATIENTS = 50000
+N_FEATURES = 100
+STEP_SIZE = 1e-3
+event_rate = 0.01
+similarity = 1
+
+# modeling
+training_ratio = 0.75
+test_ratio = 0.2
+learning_rate = 0.001
+batch_size = 200
+num_layers = 1
+hidden_size = 1
+epochs = 200
+lam = 0.0001
+optimize = Adam
+activation = relu
