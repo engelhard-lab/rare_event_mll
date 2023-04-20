@@ -1,6 +1,6 @@
 from Results.base_plot_auc_ap import plot_auc_ap
 
-file_name = 'sklearn/similarity_results.csv'
+file_name = 'torch/similarity_results.csv'
 vars = {
     'x_var': 'similarity',
     'hue_var': 'method',
