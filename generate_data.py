@@ -36,8 +36,9 @@ def generate_data_shared_features(
 	# zero coefficients such that outcomes 1 and 2 depend on 
 	# a) n_overlapping overlapping features; and
 	# b) n_distinct distinct features
-	c1[:n_distinct] = 0
-	c2[n_distinct: (2 * n_distinct)] = 0
+	if n_distinct > 0:
+		c1[:n_distinct] = 0
+		c2[n_distinct: (2 * n_distinct)] = 0
 
 	# find logit offset that gives the desired event rate
 	offset1 = find_offset(
@@ -63,6 +64,10 @@ def generate_data_shared_features(
 	p2 = sigmoid(l2)
 
 	# generate events
+	# up_thresh = p1[np.argsort(p1)][-int(n_patients*event_rate)]
+	# lower_thresh = p1[np.argsort(p1)][-int(n_patients*event_rate*2)]
+	# e2 = np.where(p1 >= up_thresh, 1, 0)
+	# e1 = np.where(np.where(p1 >= up_thresh, 0, p1) >= lower_thresh, 1, 0)
 	e1 = bernoulli_draw(rs, p1)
 	e2 = bernoulli_draw(rs, p2)
 
@@ -134,7 +139,7 @@ def generate_data_linear(
 	if plot:
 		plot_logits_and_probs(l1, l2, p1, p2)
 
-	return x, e1, e2, u1, u2
+	return x, e1, e2
 
 
 def plot_logits_and_probs(l1, l2, p1, p2):
