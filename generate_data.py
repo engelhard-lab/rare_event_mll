@@ -1,37 +1,17 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
-N_PATIENTS = 10000
-N_FEATURES = 10
 RANDOM_SEED = 2023
-STEP_SIZE = 1e-2
-
-EVENT_RATE = 0.01
-SIMILARITY = 0.95
-
-
-def main():
-
-	x, e1, e2 = generate_data_linear(plot=True)
-
-	print('Rate of event 1: %.3f' % np.mean(e1))
-	print('Rate of event 2: %.3f' % np.mean(e2))
-	print('Rate of co-occurrence: %.3f' % np.mean(e1 & e2))
-	print('Correlation between events: %.3f' % np.corrcoef(e1, e2)[0, 1])
-
-	x, e1, e2 = generate_data_shared_features(2, 38, shared_second_layer_weights=True, plot=True)
-
-	print('Rate of event 1: %.3f' % np.mean(e1))
-	print('Rate of event 2: %.3f' % np.mean(e2))
-	print('Rate of co-occurrence: %.3f' % np.mean(e1 & e2))
-	print('Correlation between events: %.3f' % np.corrcoef(e1, e2)[0, 1])
+STEP_SIZE = 1e-3
+PRINT_OUTPUT = False
+PLOT = False
 
 
 def generate_data_shared_features(
-	n_distinct, n_overlapping,
-	n_patients=N_PATIENTS, n_features=N_FEATURES,
-	random_seed=RANDOM_SEED, event_rate=EVENT_RATE,
-	step_size=STEP_SIZE, shared_second_layer_weights=True,
-	plot=False):
+		n_patients, n_features, event_rate, n_distinct, n_overlapping,
+		shared_second_layer_weights, random_seed=RANDOM_SEED,
+		step_size=STEP_SIZE, print_output=PRINT_OUTPUT, plot=PLOT
+):
 
 	rs = np.random.RandomState(random_seed)
 
@@ -41,7 +21,6 @@ def generate_data_shared_features(
 	n_random_features = n_overlapping + 2 * n_distinct
 
 	# generate coefficient matrix defining random features
-	#W = rs.randn(n_features, n_random_features)
 	W = glorot_uniform(rs, n_features, n_random_features)
 
 	h = relu(x @ W)
@@ -57,11 +36,9 @@ def generate_data_shared_features(
 	# zero coefficients such that outcomes 1 and 2 depend on 
 	# a) n_overlapping overlapping features; and
 	# b) n_distinct distinct features
-	c1[:n_distinct] = 0
-	c2[n_distinct: (2 * n_distinct)] = 0
-
-	# print similarity between (normed) c1 and c2
-	print('Dot product of u1 and u2: %.2f' % np.dot(normalize(c1), normalize(c2)))
+	if n_distinct > 0:
+		c1[:n_distinct] = 0
+		c2[n_distinct: (2 * n_distinct)] = 0
 
 	# find logit offset that gives the desired event rate
 	offset1 = find_offset(
@@ -87,25 +64,41 @@ def generate_data_shared_features(
 	p2 = sigmoid(l2)
 
 	# generate events
+	# up_thresh = p1[np.argsort(p1)][-int(n_patients*event_rate)]
+	# lower_thresh = p1[np.argsort(p1)][-int(n_patients*event_rate*2)]
+	# e2 = np.where(p1 >= up_thresh, 1, 0)
+	# e1 = np.where(np.where(p1 >= up_thresh, 0, p1) >= lower_thresh, 1, 0)
 	e1 = bernoulli_draw(rs, p1)
 	e2 = bernoulli_draw(rs, p2)
 
-	if plot:
+	if print_output:
+		print('Dot product of u1 and u2: %.2f' % np.dot(normalize(c1),
+														normalize(c2)))
+		print('Avg prob')
+		print(np.mean(
+			[p1[i] for i in range(len(p1)) if e1[i] == 1]) / np.mean(p1))
+		print(np.mean(
+			[p1[i] for i in range(len(p1)) if e2[i] == 1]) / np.mean(p1))
+		print('Rate of event 1: %.3f' % np.mean(e1))
+		print('Rate of event 2: %.3f' % np.mean(e2))
+		print('Rate of co-occurrence: %.3f' % np.mean(e1 & e2))
+		print('Correlation between events: %.3f' % np.corrcoef(e1, e2)[0, 1])
 
+	if plot:
 		plot_logits_and_probs(l1, l2, p1, p2)
 
 	return x, e1, e2
 
 
 def generate_data_linear(
-	n_patients=N_PATIENTS, n_features=N_FEATURES,
-	random_seed=RANDOM_SEED, event_rate=EVENT_RATE,
-	step_size=STEP_SIZE, similarity=SIMILARITY,
-	plot=False):
+		n_patients, n_features, event_rate, similarity,
+		random_seed=RANDOM_SEED, step_size=STEP_SIZE,
+		print_output=PRINT_OUTPUT, plot=PLOT
+):
 
 	rs = np.random.RandomState(random_seed)
 
-	# generate n_features-dimensional feature vector for N_PATIENTS
+	# generate n_features-dimensional feature vector for n_patients
 	x = rs.randn(n_patients, n_features)
 
 	# generate coefficient vectors for events 1 and 2
@@ -119,9 +112,6 @@ def generate_data_linear(
 		step_size
 	)
 
-	# print similarity between u1 and u2
-	print('Dot product of u1 and u2: %.2f' % np.dot(u1, u2))
-
 	# calculate logits for each event
 	l1 = np.dot(x, u1) - offset
 	l2 = np.dot(x, u2) - offset
@@ -134,17 +124,25 @@ def generate_data_linear(
 	e1 = bernoulli_draw(rs, p1)
 	e2 = bernoulli_draw(rs, p2)
 
-	if plot:
+	if print_output:
+		print('Dot product of u1 and u2: %.2f' % np.dot(u1, u2))
+		print('Avg prob')
+		print(np.mean(
+			[p1[i] for i in range(len(p1)) if e1[i] == 1]) / np.mean(p1))
+		print(np.mean(
+			[p1[i] for i in range(len(p1)) if e2[i] == 1]) / np.mean(p1))
+		print('Rate of event 1: %.3f' % np.mean(e1))
+		print('Rate of event 2: %.3f' % np.mean(e2))
+		print('Rate of co-occurrence: %.3f' % np.mean(e1 & e2))
+		print('Correlation between events: %.3f' % np.corrcoef(e1, e2)[0, 1])
 
+	if plot:
 		plot_logits_and_probs(l1, l2, p1, p2)
 
 	return x, e1, e2
 
 
 def plot_logits_and_probs(l1, l2, p1, p2):
-
-	import matplotlib.pyplot as plt
-
 	fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(10, 4))
 
 	ax[0].hist(l1, alpha=.5, bins=20, label='Event 1')
@@ -190,7 +188,8 @@ def find_offset(rs, logits, event_rate, step_size):
 
 
 def normed_uniform(rs, n):
-	return normalize(rs.rand(n) - .5)
+	return normalize(rs.normal(loc=0, scale=10, size=n))
+	# return normalize(rs.rand(n) - .5)
 
 
 def bernoulli_draw(rs, p):
@@ -216,7 +215,3 @@ def normalize(v):
 
 def relu(v):
 	return np.maximum(v, 0)
-
-
-if __name__ == '__main__':
-	main()
