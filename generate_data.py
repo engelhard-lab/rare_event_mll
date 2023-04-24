@@ -18,46 +18,44 @@ def generate_data_shared_features(
 	# generate N_FEATURES-dimensional feature vector for N_PATIENTS
 	x = rs.randn(n_patients, n_features)
 
-	n_random_features = n_overlapping + 2 * n_distinct
+	n_random_features = n_overlapping + n_distinct
 
 	# generate coefficient matrix defining random features
 	W = glorot_uniform(rs, n_features, n_random_features)
 
-	h = relu(x @ W)
+	h1 = relu(x @ W)
 
 	# generate coefficient vector for second layer
 	c1 = glorot_uniform(rs, n_random_features, 1)
 
-	if shared_second_layer_weights:
-		c2 = c1.copy() # copying here is critical otherwise it's the same object
-	else:
-		c2 = glorot_uniform(rs, n_random_features, 1)
+	W2 = glorot_uniform(rs, n_features, n_distinct)
 
-	# zero coefficients such that outcomes 1 and 2 depend on 
-	# a) n_overlapping overlapping features; and
-	# b) n_distinct distinct features
-	if n_distinct > 0:
-		c1[:n_distinct] = 0
-		c2[n_distinct: (2 * n_distinct)] = 0
+	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W2)], axis=1)
+
+	if shared_second_layer_weights:
+		c2 = np.concatenate([c1[:n_overlapping],
+							 glorot_uniform(rs, n_distinct, 1)])
+	else:
+		c2 = glorot_uniform(rs, n_features, n_random_features)
 
 	# find logit offset that gives the desired event rate
 	offset1 = find_offset(
 		rs,
-		np.dot(h, c1),
+		np.dot(h1, c1),
 		event_rate,
 		step_size
 	)
 
 	offset2 = find_offset(
 		rs,
-		np.dot(h, c2),
+		np.dot(h2, c2),
 		event_rate,
 		step_size
 	)
 
 	# calculate logits for each event
-	l1 = np.dot(h, c1) - offset1
-	l2 = np.dot(h, c2) - offset2
+	l1 = np.dot(h1, c1) - offset1
+	l2 = np.dot(h2, c2) - offset2
 
 	# calculate probability of each event
 	p1 = sigmoid(l1)
