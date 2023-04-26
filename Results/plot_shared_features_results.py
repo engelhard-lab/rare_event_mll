@@ -1,6 +1,6 @@
 from Results.base_plot_auc_ap import plot_auc_ap
 
-file_name = 'Results/sklearn/shared_features_results_overlap.csv'
+file_name = 'torch/test_rs.csv'
 vars = {
     'x_var': '% overlap',
     'hue_var': 'method',

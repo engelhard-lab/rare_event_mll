@@ -7,8 +7,8 @@ the the path to rare_event_mll/ to your PYTHONPATH."""
 and they will all be run. be aware when combining multiple lists that this
 can lead to very long run time to complete all combinations."""
 
-save_file = 'sklearn/shared_features_results_overlap.csv'  # saved inside Results/ folder
-n_patients = 50000  # n of samples to generate
+save_file = 'torch/test_rs.csv'  # saved inside Results/ folder
+n_patients = 5000  # n of samples to generate
 n_features = 100  # n of features to generate
 event_rate = 0.01  # event rate for sample
 model_types = ['torch']  # options are 'sklearn' and 'torch'
