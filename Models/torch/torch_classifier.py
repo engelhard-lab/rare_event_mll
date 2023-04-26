@@ -7,18 +7,24 @@ from Models.torch.torch_dataset import Dataset
 from Models.torch.torch_base_nn import NeuralNet
 
 
-def torch_classifier(x_train, e1_train, e2_train, x_test,
+def torch_classifier(x_train, e1_train, e2_train, x_test, random_seed,
                      hidden_layers, activation, learning_rate=0.001,
                      batch_size=200,
                      epochs=200, regularization=0.0001):
+    
+    
+    torch.manual_seed(random_seed)
 
     train = DataLoader(Dataset(x_train, e1_train, e2_train),
                        batch_size=batch_size, shuffle=True)
 
     layers = [x_train.shape[1]] + hidden_layers
+
+    torch.manual_seed(random_seed)
     single_model = NeuralNet(layers + [1], activation=activation)
     multi_model = NeuralNet(layers + [2], activation=activation)
 
+    torch.manual_seed(random_seed)
     optimizer_single = torch.optim.Adam(single_model.parameters(),
                                         lr=learning_rate)
     optimizer_multi = torch.optim.Adam(multi_model.parameters(),

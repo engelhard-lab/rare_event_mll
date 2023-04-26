@@ -7,7 +7,7 @@ the the path to rare_event_mll/ to your PYTHONPATH."""
 and they will all be run. be aware when combining multiple lists that this
 can lead to very long run time to complete all combinations."""
 
-save_file = 'torch/shared_features_results.csv'  # saved inside Results/ folder
+save_file = 'sklearn/shared_features_results_overlap.csv'  # saved inside Results/ folder
 n_patients = 50000  # n of samples to generate
 n_features = 100  # n of features to generate
 event_rate = 0.01  # event rate for sample
@@ -15,11 +15,11 @@ model_types = ['torch']  # options are 'sklearn' and 'torch'
 hidden_layers = [[25]]  # list of hidden layer sizes
 activations = ['relu']  # activation function. currently only support relu
 similarity_measures = {
-    'n_distinct': [5],  # n of distinct features for each label
-    'n_overlapping': [15],  # n of overlapping features for the two labels
+    'n_distinct': [20, 25],  # n of distinct features for each label
+    'n_random_features': [25],  # n of hidden features for each label
     'shared_second_layer_weights': [True]  # whether the labels share the same weights of their features
 }
-n_iters = 10  # n of iterations to run each combination
+n_iters = 1  # n of iterations to run each combination
 test_perc = 0.25  # percent of samples to use for test set
 print_time = True  # whether to print updates after each combination is complete
 print_output = False  # whether to print details about each generated dataset

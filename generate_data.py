@@ -8,7 +8,7 @@ PLOT = False
 
 
 def generate_data_shared_features(
-		n_patients, n_features, event_rate, n_distinct, n_overlapping,
+		n_patients, n_features, event_rate, n_distinct, n_random_features,
 		shared_second_layer_weights, random_seed=RANDOM_SEED,
 		step_size=STEP_SIZE, print_output=PRINT_OUTPUT, plot=PLOT
 ):
@@ -18,7 +18,7 @@ def generate_data_shared_features(
 	# generate N_FEATURES-dimensional feature vector for N_PATIENTS
 	x = rs.randn(n_patients, n_features)
 
-	n_random_features = n_overlapping + n_distinct
+	n_overlapping = n_random_features - n_distinct
 
 	# generate coefficient matrix defining random features
 	W = glorot_uniform(rs, n_features, n_random_features)
