@@ -28,16 +28,6 @@ def generate_data_shared_features(
 	# generate coefficient vector for second layer
 	c1 = glorot_uniform(rs, n_random_features, 1)
 
-	W2 = glorot_uniform(rs, n_features, n_distinct)
-
-	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W2)], axis=1)
-
-	if shared_second_layer_weights:
-		c2 = np.concatenate([c1[:n_overlapping],
-							 glorot_uniform(rs, n_distinct, 1)])
-	else:
-		c2 = glorot_uniform(rs, n_features, n_random_features)
-
 	# find logit offset that gives the desired event rate
 	offset1 = find_offset(
 		rs,
@@ -46,27 +36,32 @@ def generate_data_shared_features(
 		step_size
 	)
 
+	# calculate logits for each event
+	l1 = np.dot(h1, c1) - offset1
+
+	# calculate probability of each event
+	p1 = sigmoid(l1)
+
+	# generate events
+	e1 = bernoulli_draw(rs, p1)
+
+	# generate labels for event 2
+	W2 = glorot_uniform(rs, n_features, n_distinct)
+	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W2)], axis=1)
+	if shared_second_layer_weights:
+		c2 = np.concatenate([c1[:n_overlapping],
+							 glorot_uniform(rs, n_distinct, 1)])
+	else:
+		c2 = glorot_uniform(rs, n_features, n_random_features)
+
 	offset2 = find_offset(
 		rs,
 		np.dot(h2, c2),
 		event_rate,
 		step_size
 	)
-
-	# calculate logits for each event
-	l1 = np.dot(h1, c1) - offset1
 	l2 = np.dot(h2, c2) - offset2
-
-	# calculate probability of each event
-	p1 = sigmoid(l1)
 	p2 = sigmoid(l2)
-
-	# generate events
-	# up_thresh = p1[np.argsort(p1)][-int(n_patients*event_rate)]
-	# lower_thresh = p1[np.argsort(p1)][-int(n_patients*event_rate*2)]
-	# e2 = np.where(p1 >= up_thresh, 1, 0)
-	# e1 = np.where(np.where(p1 >= up_thresh, 0, p1) >= lower_thresh, 1, 0)
-	e1 = bernoulli_draw(rs, p1)
 	e2 = bernoulli_draw(rs, p2)
 
 	if print_output:

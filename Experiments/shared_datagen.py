@@ -7,11 +7,11 @@ the the path to rare_event_mll/ to your PYTHONPATH."""
 and they will all be run. be aware when combining multiple lists that this
 can lead to very long run time to complete all combinations."""
 
-save_file = 'torch/test_rs.csv'  # saved inside Results/ folder
+save_file = 'sklearn/test_rs.csv'  # saved inside Results/ folder
 n_patients = 5000  # n of samples to generate
 n_features = 100  # n of features to generate
 event_rate = 0.01  # event rate for sample
-model_types = ['torch']  # options are 'sklearn' and 'torch'
+model_types = ['sklearn']  # options are 'sklearn' and 'torch'
 hidden_layers = [[25]]  # list of hidden layer sizes
 activations = ['relu']  # activation function. currently only support relu
 similarity_measures = {

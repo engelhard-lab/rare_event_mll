@@ -60,7 +60,7 @@ def base_auc_ap(n, p, er, model_types, hidden_layers, activations,
                                                          test_size=test_perc)
                     for m in model_types:
                         if m == 'sklearn':
-                            single_proba, multi_proba = sklearn_mlp(
+                            single_proba, multi_proba, multi_refined_proba = sklearn_mlp(
                                 x_train=x_train, e1_train=e1_train, e2_train=e2_train,
                                 x_test=x_test, random_state=r, hidden_layers=h,
                                 activation=act, run_refined=run_refined)
