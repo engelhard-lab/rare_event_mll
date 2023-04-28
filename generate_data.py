@@ -46,11 +46,13 @@ def generate_data_shared_features(
 	e1 = bernoulli_draw(rs, p1)
 
 	# generate labels for event 2
-	W2 = glorot_uniform(rs, n_features, n_distinct)
+	W2 = glorot_uniform(rs, n_features, n_distinct).reshape(n_features,
+															n_distinct)
 	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W2)], axis=1)
 	if shared_second_layer_weights:
 		c2 = np.concatenate([c1[:n_overlapping],
-							 glorot_uniform(rs, n_distinct, 1)])
+							 glorot_uniform(rs, n_distinct, 1).reshape(-1,)
+							 ])
 	else:
 		c2 = glorot_uniform(rs, n_features, n_random_features)
 
