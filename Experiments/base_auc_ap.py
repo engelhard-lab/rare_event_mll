@@ -12,7 +12,7 @@ from Models.torch.torch_classifier import torch_classifier
 def base_auc_ap(n, p, er, model_types, hidden_layers, activations,
                 n_iters, datagen, similarity_measures, test_perc,
                 run_refined=False, print_time=True, print_output=False,
-                plot=False):
+                plot=False, loss_plot=False):
     datagen_args = {
         'n_patients': n,
         'n_features': p,
@@ -66,10 +66,11 @@ def base_auc_ap(n, p, er, model_types, hidden_layers, activations,
                                 activation=act, run_refined=run_refined)
                         elif m == 'torch':
                             single_proba, multi_proba, multi_refined_proba = torch_classifier(
-                                x_train=x_train, e1_train=e1_train, e2_train=e2_train,
+                                x_train=x_train, e1_train=e1_train, e2_train=e2_train, e1_test=e1_test,
                                 x_test=x_test, hidden_layers=h,
                                 activation=act, random_seed=r,
-                                run_refined=run_refined)
+                                run_refined=run_refined,
+                                loss_plot = loss_plot)
                         single_auc = roc_auc_score(e1_test, single_proba)
                         multi_auc = roc_auc_score(e1_test, multi_proba)
 

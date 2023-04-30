@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from Models.torch.torch_base_nn import NeuralNet
 from Models.dataloader import create_batches
+import matplotlib.pyplot as plt
 
 
 def set_torch_seed(random_seed):
@@ -18,16 +19,20 @@ def set_torch_seed(random_seed):
     torch.backends.cudnn.deterministic = True
 
 
-def torch_classifier(x_train, e1_train, e2_train, x_test,
+def torch_classifier(x_train, e1_train, e2_train, x_test, e1_test,
                      hidden_layers, activation, random_seed, run_refined=False,
+                     loss_plot=False,
                      learning_rate=0.001,
                      batch_size=200,
-                     epochs=200, regularization=0.0001):
+                     epochs=200, regularization=0.0001,
+                     ):
 
     # convert dtypes to play nicely with torch
     x_train = x_train.astype('float32')
     e1_train = e1_train.astype('float32')
     e2_train = e2_train.astype('float32')
+    x_test = x_test.astype('float32')
+    e1_test = e1_test.astype('float32')
 
     set_torch_seed(random_seed)
 
@@ -43,8 +48,12 @@ def torch_classifier(x_train, e1_train, e2_train, x_test,
                                         lr=learning_rate)
     optimizer_multi = torch.optim.Adam(multi_model.parameters(),
                                        lr=learning_rate)
+    if loss_plot:
+        train_loss_single = []
+        test_loss_single = []
 
     for e in train_epochs:
+        train_loss = 0
         for batch in e:
             X = torch.from_numpy(x_train[batch, :])
             Y = torch.from_numpy(e1_train[batch].reshape(-1, 1))
@@ -61,8 +70,25 @@ def torch_classifier(x_train, e1_train, e2_train, x_test,
             batch_loss_single.backward()
             optimizer_single.step()
 
+            train_loss += batch_loss_single.item()
+
+        if loss_plot:
+            train_loss /= len(e)
+            train_loss_single.append(train_loss)
+        
+            with torch.no_grad():
+                test_loss = nn.functional.binary_cross_entropy(
+                single_model(torch.from_numpy(x_test)),
+                torch.from_numpy(e1_test.reshape(-1, 1)))
+                test_loss_single.append(test_loss)
+
+    if loss_plot:
+        train_loss_multi = []
+        test_loss_multi = []
+
     multi_epochs = epochs // 2 if run_refined else epochs
     for e in train_epochs[:multi_epochs]:
+        train_loss = 0
         for batch in e:
             X = torch.from_numpy(x_train[batch, :])
             Y = torch.from_numpy(
@@ -81,6 +107,31 @@ def torch_classifier(x_train, e1_train, e2_train, x_test,
             optimizer_multi.zero_grad()
             batch_loss_multi.backward()
             optimizer_multi.step()
+
+            train_loss += batch_loss_multi.item()
+
+        if loss_plot:
+            train_loss /= len(e)
+            train_loss_multi.append(train_loss)
+
+            with torch.no_grad():
+                test_loss = nn.functional.binary_cross_entropy(
+                multi_model(torch.from_numpy(x_test))[:,0].reshape(-1,1),
+                torch.from_numpy(e1_test).reshape(-1, 1))
+                test_loss_multi.append(test_loss)
+
+    if loss_plot:
+        x_axix = np.arange(epochs)
+        plt.figure()
+        plt.plot(x_axix, train_loss_single, color="red", label="single train loss")
+        plt.plot(x_axix, test_loss_single, color="blue", label="singel test loss")
+        plt.plot(x_axix, train_loss_multi, color="purple", label="multi train loss")
+        plt.plot(x_axix, test_loss_multi, color="navy", label="multi train loss")
+        plt.xlabel("Epochs")
+        plt.legend()
+        plt.show()
+
+
 
     if run_refined:
         multi_params = []
