@@ -2,12 +2,13 @@ import copy
 import numpy as np
 from sklearn.neural_network import MLPClassifier
 from Models.sklearn.mlp_preset_weights import MLPClassifierOverride
+import matplotlib.pyplot as plt
 
 
 def sklearn_mlp(
         x_train, e1_train, e2_train, x_test, random_state, hidden_layers,
-        activation, run_refined=False, learning_rate=0.001, batch_size=200,
-        epochs=500, regularization=0.0001
+        activation, loss_plot, run_refined=False, learning_rate=0.001, batch_size=200,
+        epochs=500, regularization=0.0001, early_stop = False
 ):
     single_model = MLPClassifier(hidden_layer_sizes=hidden_layers,
                                  activation=activation,
@@ -15,7 +16,8 @@ def sklearn_mlp(
                                  alpha=regularization,
                                  random_state=random_state,
                                  batch_size=batch_size,
-                                 max_iter=epochs).fit(x_train, e1_train)
+                                 early_stopping=early_stop,
+                                 max_iter=epochs).fit(x_train, e1_train)       
     print('Single Fit')
     multi_model = MLPClassifier(hidden_layer_sizes=hidden_layers,
                                 activation=activation,
@@ -23,6 +25,7 @@ def sklearn_mlp(
                                 alpha=regularization,
                                 random_state=random_state,
                                 batch_size=batch_size,
+                                early_stopping=early_stop,
                                 max_iter=epochs).fit(
         x_train, np.concatenate([e1_train.reshape(-1, 1),
                                  e2_train.reshape(-1, 1)], axis=1)
@@ -42,6 +45,16 @@ def sklearn_mlp(
         multi_refined_results = multi_refined_model.predict_proba(x_test)[:, 0]
     else:
         multi_refined_results = None
+    
+    # if loss_plot:
+    #     plt.figure()
+    #     plt.plot(range(len(single_model.loss_curve_)), single_model.loss_curve_, color="red", label="single train loss")
+    #     plt.plot(range(len(single_model.validation_scores_)), single_model.validation_scores_, color="blue", label="singel test loss")
+    #     # plt.plot(range(len(multi_model.loss_curve_)), multi_model.loss_curve_, color="purple", label="multi train loss")
+    #     # plt.plot(range(len(multi_model.validation_scores_)), multi_model.validation_scores_, color="navy", label="multi train loss")
+    #     plt.xlabel("Epochs")
+    #     plt.legend()
+    #     plt.show()
 
     return single_model.predict_proba(x_test)[:, 1], \
            multi_model.predict_proba(x_test)[:, 1], \

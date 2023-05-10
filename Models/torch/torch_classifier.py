@@ -22,6 +22,7 @@ def set_torch_seed(random_seed):
 def torch_classifier(x_train, e1_train, e2_train, x_test, e1_test,
                      hidden_layers, activation, random_seed, run_refined=False,
                      loss_plot=False,
+                     early_stop=True,
                      learning_rate=0.001,
                      batch_size=200,
                      epochs=200, regularization=0.0001,
@@ -48,9 +49,10 @@ def torch_classifier(x_train, e1_train, e2_train, x_test, e1_test,
                                         lr=learning_rate)
     optimizer_multi = torch.optim.Adam(multi_model.parameters(),
                                        lr=learning_rate)
-    if loss_plot:
-        train_loss_single = []
-        test_loss_single = []
+    train_loss_single = []
+    test_loss_single = []
+    best_loss = float("inf")
+    patience = 10
 
     for e in train_epochs:
         train_loss = 0
@@ -72,19 +74,31 @@ def torch_classifier(x_train, e1_train, e2_train, x_test, e1_test,
 
             train_loss += batch_loss_single.item()
 
-        if loss_plot:
+        if early_stop:
             train_loss /= len(e)
             train_loss_single.append(train_loss)
         
             with torch.no_grad():
                 test_loss = nn.functional.binary_cross_entropy(
-                single_model(torch.from_numpy(x_test)),
-                torch.from_numpy(e1_test.reshape(-1, 1)))
+                    single_model(torch.from_numpy(x_test)),
+                    torch.from_numpy(e1_test.reshape(-1, 1))
+                    )
                 test_loss_single.append(test_loss)
+            
+            if test_loss < best_loss:
+                best_loss = test_loss
+                patientce_counter = 0
+            else:
+                patientce_counter += 1
+            
+            if patientce_counter >= patience:
+                break
 
-    if loss_plot:
-        train_loss_multi = []
-        test_loss_multi = []
+
+    train_loss_multi = []
+    test_loss_multi = []
+    best_loss = float("inf")
+    patience = 10
 
     multi_epochs = epochs // 2 if run_refined else epochs
     for e in train_epochs[:multi_epochs]:
@@ -110,23 +124,32 @@ def torch_classifier(x_train, e1_train, e2_train, x_test, e1_test,
 
             train_loss += batch_loss_multi.item()
 
-        if loss_plot:
+        if early_stop:
             train_loss /= len(e)
             train_loss_multi.append(train_loss)
 
             with torch.no_grad():
                 test_loss = nn.functional.binary_cross_entropy(
-                multi_model(torch.from_numpy(x_test))[:,0].reshape(-1,1),
-                torch.from_numpy(e1_test).reshape(-1, 1))
+                    multi_model(torch.from_numpy(x_test))[:,0].reshape(-1,1),
+                    torch.from_numpy(e1_test).reshape(-1, 1)
+                    )
                 test_loss_multi.append(test_loss)
+            
+            if test_loss < best_loss:
+                best_loss = test_loss
+                patientce_counter = 0
+            else:
+                patientce_counter += 1
+
+            if patientce_counter >= patience:
+                break
 
     if loss_plot:
-        x_axix = np.arange(epochs)
         plt.figure()
-        plt.plot(x_axix, train_loss_single, color="red", label="single train loss")
-        plt.plot(x_axix, test_loss_single, color="blue", label="singel test loss")
-        plt.plot(x_axix, train_loss_multi, color="purple", label="multi train loss")
-        plt.plot(x_axix, test_loss_multi, color="navy", label="multi train loss")
+        plt.plot(range(len(train_loss_single)), train_loss_single, color="red", label="single train loss")
+        plt.plot(range(len(test_loss_single)), test_loss_single, color="blue", label="singel test loss")
+        plt.plot(range(len(train_loss_multi)), train_loss_multi, color="purple", label="multi train loss")
+        plt.plot(range(len(test_loss_multi)), test_loss_multi, color="navy", label="multi train loss")
         plt.xlabel("Epochs")
         plt.legend()
         plt.show()

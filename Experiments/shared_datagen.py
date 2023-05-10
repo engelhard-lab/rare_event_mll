@@ -27,6 +27,7 @@ print_output = False  # whether to print details about each generated dataset
 plot = False  # whether to plot details of each generated dataset
 run_refined = False
 loss_plot = False  # whether to plot learning loss
+early_stop = True  # whether to do early stopping in training
 
 results = base_auc_ap(n=n_patients, p=n_features, er=event_rate,
                       model_types=model_types, hidden_layers=hidden_layers,
@@ -35,6 +36,7 @@ results = base_auc_ap(n=n_patients, p=n_features, er=event_rate,
                       similarity_measures=similarity_measures,
                       test_perc=test_perc, print_time=print_time,
                       print_output=print_output, plot=plot,
-                      run_refined=run_refined, loss_plot=loss_plot)
+                      run_refined=run_refined, loss_plot=loss_plot,
+                      early_stop=early_stop)
 
 results.to_csv(f'Results/{save_file}', index=False)

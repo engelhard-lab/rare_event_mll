@@ -12,7 +12,7 @@ from Models.torch.torch_classifier import torch_classifier
 def base_auc_ap(n, p, er, model_types, hidden_layers, activations,
                 n_iters, datagen, similarity_measures, test_perc,
                 run_refined=False, print_time=True, print_output=False,
-                plot=False, loss_plot=False):
+                plot=False, loss_plot=False, early_stop=True):
     datagen_args = {
         'n_patients': n,
         'n_features': p,
@@ -63,19 +63,25 @@ def base_auc_ap(n, p, er, model_types, hidden_layers, activations,
                             single_proba, multi_proba, multi_refined_proba = sklearn_mlp(
                                 x_train=x_train, e1_train=e1_train, e2_train=e2_train,
                                 x_test=x_test, random_state=r, hidden_layers=h,
-                                activation=act, run_refined=run_refined)
+                                activation=act, run_refined=run_refined,
+                                loss_plot = loss_plot,
+                                early_stop=early_stop)
                         elif m == 'torch':
                             single_proba, multi_proba, multi_refined_proba = torch_classifier(
                                 x_train=x_train, e1_train=e1_train, e2_train=e2_train, e1_test=e1_test,
                                 x_test=x_test, hidden_layers=h,
                                 activation=act, random_seed=r,
                                 run_refined=run_refined,
-                                loss_plot = loss_plot)
+                                loss_plot = loss_plot,
+                                early_stop=early_stop)
                         single_auc = roc_auc_score(e1_test, single_proba)
                         multi_auc = roc_auc_score(e1_test, multi_proba)
 
                         single_ap = average_precision_score(e1_test, single_proba)
                         multi_ap = average_precision_score(e1_test, multi_proba)
+
+                        print(single_auc, multi_auc)
+
                         if run_refined:
                             multi_refined_auc = roc_auc_score(e1_test,
                                                               multi_refined_proba)
