@@ -2,7 +2,7 @@ from Results.base_plot_auc_ap import plot_auc_ap
 
 file_name = 'sklearn/test_rs.csv'
 vars = {
-    'x_var': 'hidden_layers',
+    'x_var': '% overlap',
     'hue_var': 'method',
     'row_var': 'metric',
     'col_var': 'activation'
