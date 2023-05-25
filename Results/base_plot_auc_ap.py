@@ -1,5 +1,7 @@
 import pandas as pd
 import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 
 def plot_auc_ap(file_name, vars, calc_vars=None):
@@ -23,5 +25,8 @@ def plot_auc_ap(file_name, vars, calc_vars=None):
                                hue=vars['hue_var'],
                                row=vars['row_var'], col=vars['col_var'],
                                kind='box', sharex=True, sharey=False)
+    
+    for ax in results_plot.axes.flatten():
+        ax.set_xticklabels([0.001, 0.003, 0.01, 0.03, 0.1])
 
     results_plot.figure.savefig(f'{file_name.split(".")[0]}_boxplot.png')

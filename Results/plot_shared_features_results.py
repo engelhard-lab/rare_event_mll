@@ -1,14 +1,22 @@
 from Results.base_plot_auc_ap import plot_auc_ap
 
-file_name = 'torch/newER_full_overlap.csv'
+file_name = 'torch/ER_test_25.csv'
 
 vars = {
-    'x_var': 'hidden_layers',
+    'x_var': 'er',
     'hue_var': 'method',
     'row_var': 'metric',
-    'col_var': 'activation'
+    'col_var': 'n_distinct'
 }
 calc_vars = {}
+
+# vars = {
+#     'x_var': 'hidden_layers',
+#     'hue_var': 'method',
+#     'row_var': 'metric',
+#     'col_var': 'activation'
+# }
+# calc_vars = {}
 
 # vars = {
 #     'x_var': '% overlap',
