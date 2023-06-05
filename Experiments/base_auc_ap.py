@@ -43,7 +43,8 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
     for act in activations:
         for s in similarity_combos:
             for er in event_rate:
-                for r in range(n_iters):                
+                for r in range(n_iters):    
+                    r = r+5            
                     datagen_args = {
                         'n_patients': n,
                         'n_features': p,
@@ -84,6 +85,8 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                                           fixed_var=other_var,
                                                           data=data,
                                                           )
+                            
+                            print(best_config_single)
                             single_auc, single_ap = torch_classifier(
                                 config=best_config_single,
                                 fixed_config=other_var,
@@ -99,6 +102,7 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                                          fixed_var=other_var,
                                                          data=data,
                                                          )
+                            print(best_config_multi)
                             multi_auc, multi_ap = torch_classifier(
                                 config=best_config_multi,
                                 fixed_config=other_var,
@@ -131,6 +135,7 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                                             best_config_single,
                                                             best_config_multi] + \
                                                             list(s.values())
+                            results.to_csv("tempo2.csv")
                 if print_time:
                     print(f'Activation: {act}, '
                         f'{" ".join([str(k) + ": "+str(v) for k,v in s.items()])}. '

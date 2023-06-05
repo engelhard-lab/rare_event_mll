@@ -52,6 +52,10 @@ def torch_classifier(config,
     x_train = x_train.astype('float32')
     e1_train = e1_train.astype('float32')
     x_test = x_test.astype('float32')
+    e1_test = e1_test.astype('float32')
+    e2_train = e2_train.astype('float32')
+
+    set_torch_seed(random_seed)
 
     # split 20% of train set to valid set
     train_abs = int(len(x_train)* 0.8)
@@ -59,8 +63,6 @@ def torch_classifier(config,
     x_sub_val = x_train[train_abs:]
     e1_sub_train = e1_train[:train_abs]
     e1_sub_val = e1_train[train_abs:]
-
-    set_torch_seed(random_seed)
 
     train_epochs = create_batches(num_samples=x_sub_train.shape[0], 
                                   batch_size=batch_size,
@@ -73,7 +75,7 @@ def torch_classifier(config,
     train_loss_list = []
     valid_loss_list = []
     best_loss = float("inf")
-    patience = 5
+    patience = 10
     
     print(method)
 
@@ -108,14 +110,15 @@ def torch_classifier(config,
             train_loss /= len(e)
             train_loss_list.append(train_loss)
         
+
             with torch.no_grad():
                 valid_loss = nn.functional.binary_cross_entropy(
                     model(torch.from_numpy(x_sub_val)),
                     torch.from_numpy(e1_sub_val.reshape(-1, 1))
                     )
-                valid_loss = valid_loss.item()
+                # valid_loss = valid_loss.item()
                 valid_loss_list.append(valid_loss)
-            
+
             if valid_loss < best_loss:
                 best_loss = valid_loss
                 patientce_counter = 0
@@ -124,8 +127,13 @@ def torch_classifier(config,
             
             if patientce_counter >= patience:
                 break
+
+        x_sub_val = torch.from_numpy(x_sub_val.astype('float32'))
+        with torch.no_grad():
+            pred = model(x_sub_val).numpy()[:, 0]
+        valid_auc = roc_auc_score(e1_sub_val, pred)
+        valid_ap = average_precision_score(e1_sub_val, pred)
         
-        accuracy = 1-valid_loss
     
 
     # multi learning
@@ -181,10 +189,15 @@ def torch_classifier(config,
 
             if patientce_counter >= patience:
                 break
+            
+        x_sub_val = torch.from_numpy(x_sub_val.astype('float32'))        
+        with torch.no_grad():
+            pred = model(x_sub_val).numpy()[:, 0]
+        valid_auc = roc_auc_score(e1_sub_val, pred)
+        valid_ap = average_precision_score(e1_sub_val, pred)
 
-        accuracy = 1-valid_loss
 
-        
+    print(loss_plot)
     if loss_plot:
         plt.figure()
         plt.plot(range(len(train_loss_list)), train_loss_list, color="red", label="single train loss")
@@ -193,6 +206,7 @@ def torch_classifier(config,
         plt.legend()
         plt.show()     
 
+
     if performance:  
         test = torch.from_numpy(x_test.astype('float32'))
         with torch.no_grad():
@@ -200,8 +214,8 @@ def torch_classifier(config,
         auc = roc_auc_score(e1_test, pred)
         ap = average_precision_score(e1_test, pred)
 
-        return auc, ap 
+        return auc, ap
     
     else:
-        return {"valid_loss": valid_loss, "accuracy": accuracy}
+        return {"valid_auc": valid_auc, "valid_ap": valid_ap}
 
