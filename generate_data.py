@@ -16,12 +16,21 @@ def generate_data_shared_features(
 	rs = np.random.RandomState(random_seed)
 
 	# generate N_FEATURES-dimensional feature vector for N_PATIENTS
-	x = rs.randn(n_patients, n_features)
+	# x = rs.randn(n_patients, n_features)
+	x = np.random.normal(0, scale=2.5, size=(n_patients, n_features))
+	# x_cont = np.random.normal(0, scale=1.5, size=(n_patients, n_features//2))
+	# x_bin = np.random.binomial(1, p=0.1, size=(n_patients, n_features//2))
+	# x = np.concatenate([x_cont, x_bin], axis=1)
 
 	n_overlapping = n_random_features - n_distinct
 
 	# generate coefficient matrix defining random features
 	W = glorot_uniform(rs, n_features, n_random_features)
+
+	imp_covs = np.random.choice(range(n_features), size=50, replace=False)
+
+	W = np.concatenate([W[i].reshape(1, -1) if i in imp_covs else np.zeros(
+		shape=(1, n_random_features)) for i in range(n_features)])
 
 	h1 = relu(x @ W)
 
@@ -48,6 +57,10 @@ def generate_data_shared_features(
 	# generate labels for event 2
 	W2 = glorot_uniform(rs, n_features, n_distinct).reshape(n_features,
 															n_distinct)
+
+	W2 = np.concatenate([W2[i].reshape(1, -1) if i in imp_covs else np.zeros(
+		shape=(1, n_distinct)) for i in range(n_features)])
+
 	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W2)], axis=1)
 	if shared_second_layer_weights:
 		c2 = np.concatenate([c1[:n_overlapping],
@@ -194,6 +207,7 @@ def bernoulli_draw(rs, p):
 def glorot_uniform(rs, num_in, num_out):
 	scale_factor = 2 * np.sqrt(6 / (num_in + num_out))
 	return scale_factor * np.squeeze(rs.rand(num_in, num_out) - .5)
+	# return np.random.normal(0, 1, size=(num_in, num_out))
 
 
 def logit(p):

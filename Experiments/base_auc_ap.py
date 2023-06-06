@@ -13,7 +13,7 @@ from Models.torch.torch_ray_tune import ray_tune
 def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                 n_iters, datagen, similarity_measures, test_perc,
                 run_refined=False, print_time=True, print_output=False,
-                plot=False, loss_plot=False, early_stop=True):
+                plot=False, loss_plot=False, early_stop=True, batch_size=200):
 
     sim_keys, sim_values = zip(*similarity_measures.items())
     similarity_combos = [dict(zip(sim_keys, v)) for v in
@@ -28,11 +28,8 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
 
     if run_refined:
         columns = ['n', 'p', 'er', 'model',
-                                        'activation',
-                                        'iter', 'auc_single', 'auc_multi',
-                                        'auc_multi_refined', 'ap_single',
-                                        'ap_multi',
-                                        'ap_multi_refined']
+                   'activation', 'iter', 'auc_single', 'auc_multi', 'auc_refined',
+                   'ap_single', 'ap_multi', 'ap_refined', 'config_single', 'config_multi']
     else:
         columns = ['n', 'p', 'er', 'model',
                    'activation', 'iter', 'auc_single', 'auc_multi',
@@ -59,7 +56,8 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                     e1_train, e1_test, \
                     e2_train, e2_test = train_test_split(x, e1, e2,
                                                         random_state=r,
-                                                        test_size=test_perc)
+                                                        test_size=test_perc,
+                                                         stratify=e1)
                     for m in model_types:
                         if m == 'sklearn':
                             single_proba, multi_proba, multi_refined_proba = sklearn_mlp(
@@ -79,54 +77,56 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                             other_var = {
                                 "activation": act, 
                                 "random_seed": r,
-                                "method": "single",
+                                "batch_size": batch_size
                             }
-                            best_config_single = ray_tune(config=param_config,
-                                                          fixed_var=other_var,
-                                                          data=data,
-                                                          )
-                            
-                            print(best_config_single)
-                            single_auc, single_ap = torch_classifier(
-                                config=best_config_single,
-                                fixed_config=other_var,
-                                data = data,
-                                performance=True)
-                            
-                            other_var = {
-                                "activation": act, 
-                                "random_seed": r,
-                                "method": "multi",
+                            # best_config_single = ray_tune(config=param_config,
+                            #                               fixed_var=other_var,
+                            #                               data=data,
+                            #                               )
+                            #
+                            # print(best_config_single)
+                            # best_config_multi = ray_tune(config=param_config,
+                            #                              fixed_var=other_var,
+                            #                              data=data,
+                            #                              )
+                            # print(best_config_multi)
+                            best_config_single = {
+                                'learning_rate': 1e-5,
+                                'batch_size': 200,
+                                'regularization': 1e-5,
+                                'hidden_layers': [200]
                             }
-                            best_config_multi = ray_tune(config=param_config,
-                                                         fixed_var=other_var,
-                                                         data=data,
-                                                         )
-                            print(best_config_multi)
-                            multi_auc, multi_ap = torch_classifier(
-                                config=best_config_multi,
-                                fixed_config=other_var,
-                                data=data,
-                                performance=True)
-
-                        print(er, single_auc, multi_auc)
+                            best_config_multi = {
+                                'learning_rate': 1e-5,
+                                'batch_size': 200,
+                                'regularization': 1e-5,
+                                'hidden_layers': [200, 2]
+                            }
 
                         if run_refined:
-                            multi_refined_auc = roc_auc_score(e1_test,
-                                                            multi_refined_proba)
-                            multi_refined_ap = average_precision_score(
-                                e1_test, multi_refined_proba
-                            )
+                            single_auc, multi_auc, refined_auc, single_ap, \
+                            multi_ap, refined_ap = torch_classifier(
+                                single_config=best_config_single,
+                                multi_config=best_config_multi,
+                                fixed_config=other_var,
+                                data=data,
+                                performance=True, loss_plot=loss_plot,
+                                run_refined=True)
                             results.loc[len(results.index)] = [n, p, er, m,
-                                                            act, r,
-                                                            single_auc,
-                                                            multi_auc,
-                                                            multi_refined_auc,
+                                                            act, r, single_auc,
+                                                            multi_auc, refined_auc,
                                                             single_ap,
-                                                            multi_ap,
-                                                            multi_refined_ap] + \
+                                                            multi_ap, refined_ap,
+                                                            best_config_single,
+                                                            best_config_multi] + \
                                                             list(s.values())
                         else:
+                            single_auc, multi_auc, single_ap, multi_ap = torch_classifier(
+                                single_config=best_config_single,
+                                multi_config=best_config_multi,
+                                fixed_config=other_var,
+                                data=data,
+                                performance=True, loss_plot=loss_plot)
                             results.loc[len(results.index)] = [n, p, er, m,
                                                             act, r, single_auc,
                                                             multi_auc,
@@ -135,7 +135,7 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                                             best_config_single,
                                                             best_config_multi] + \
                                                             list(s.values())
-                            results.to_csv("tempo2.csv")
+                        results.to_csv("tempo2.csv")
                 if print_time:
                     print(f'Activation: {act}, '
                         f'{" ".join([str(k) + ": "+str(v) for k,v in s.items()])}. '

@@ -20,7 +20,6 @@ class NeuralNet(nn.Module):
             self.preset_layer = 0
             self.n_steps = len(layers) - 1
             self.apply(self._init_weights)
-
     def forward(self, x):
         x = self.flatten(x)
         logits = self.forward_pass(x)
