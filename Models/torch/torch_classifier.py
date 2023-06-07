@@ -29,8 +29,8 @@ def torch_classifier(single_config, multi_config,
                      data,
                      performance,
                      loss_plot=False,
-                     epochs=250,
-                     patience=5, start_up=20, run_refined=False
+                     epochs=400,
+                     patience=5, start_up=200, run_refined=False
                      ):
     
     x_train = data["x_train"]
@@ -157,11 +157,11 @@ def torch_classifier(single_config, multi_config,
                                 multi_hidden_layers + [2],
                                 activation=activation)
 
-        with torch.no_grad():
-            multi_model.forward_pass[4].weight.data[1] = torch.zeros(
-                (multi_hidden_layers[-1],), requires_grad=True)
-            multi_model.forward_pass[4].bias.data[1] = torch.zeros(
-                (1,), requires_grad=True)
+        # with torch.no_grad():
+        #     multi_model.forward_pass[4].weight.data[1] = torch.zeros(
+        #         (multi_hidden_layers[-1],), requires_grad=True)
+        #     multi_model.forward_pass[4].bias.data[1] = torch.zeros(
+        #         (1,), requires_grad=True)
 
         optimizer_multi = torch.optim.Adam(multi_model.parameters(),
                                            lr=multi_learning_rate)
@@ -229,45 +229,112 @@ def torch_classifier(single_config, multi_config,
 
     refined_train_loss_list = []
     refined_valid_loss_list = []
-    best_refined_val_loss = 0  # float("inf")
+    best_multi_val_loss = 0  # float("inf")
     patience_counter = 0
     start_up_counter = 0
     set_torch_seed(random_seed)
 
     if run_refined:
-        multi_params = []
-        for _, param in multi_model.named_parameters():
-            if param.requires_grad:
-                multi_params.append(param.data)
-        multi_params = copy.deepcopy(multi_params)
+        # multi_params = []
+        # for _, param in multi_model.named_parameters():
+        #     if param.requires_grad:
+        #         multi_params.append(param.data)
+        # multi_params = copy.deepcopy(multi_params)
+        # refined_model = NeuralNet([x_sub_train.shape[1]] +
+        #                           multi_hidden_layers + [1],
+        #                           activation=activation,
+        #                           preset_weights=multi_params)
+        # optimizer_refined = torch.optim.Adam(refined_model.parameters(),
+        #                                      lr=multi_learning_rate)
+        #
+        # for e in train_epochs:
+        #     refined_train_loss = 0
+        #     for batch in e:
+        #         X = torch.from_numpy(x_sub_train[batch, :])
+        #         Y = torch.from_numpy(e1_train[batch].reshape(-1, 1))
+        #         batch_loss = nn.functional.binary_cross_entropy(
+        #             refined_model(X), Y
+        #         )
+        #         refined_regularization_loss = 0
+        #         for param in refined_model.parameters():
+        #             refined_regularization_loss += torch.sum(torch.abs(param))
+        #         batch_loss += multi_regularization * refined_regularization_loss
+        #
+        #         optimizer_refined.zero_grad()
+        #         batch_loss.backward()
+        #         optimizer_refined.step()
+        #
+        #         refined_train_loss += batch_loss.item()
+        #
+        #     refined_train_loss /= len(e)
+        #     refined_train_loss_list.append(refined_train_loss)
+        #
+        #     with torch.no_grad():
+        #         # multi_valid_loss = nn.functional.binary_cross_entropy(
+        #         #     # multi_model(torch.from_numpy(x_sub_val)),
+        #         #     multi_model(torch.from_numpy(x_sub_val))[:, 0].reshape(-1,
+        #         #                                                            1),
+        #         #     torch.from_numpy(e1_sub_val).reshape(-1, 1)
+        #         #     )
+        #         # multi_valid_loss = multi_valid_loss.item()
+        #         # multi_valid_loss_list.append(multi_valid_loss)
+        #         refined_pred = refined_model(torch.from_numpy(x_sub_val)).numpy()[
+        #                      :, 0]
+        #     refined_valid_loss = roc_auc_score(e1_sub_val, refined_pred)
+        #     refined_valid_loss_list.append(refined_valid_loss)
+        #
+        #     start_up_counter += 1
+        #     if start_up_counter >= start_up:
+        #         if refined_valid_loss > best_refined_val_loss:
+        #             best_refined_val_loss = refined_valid_loss
+        #             patience_counter = 0
+        #         else:
+        #             patience_counter += 1
+        #
+        #         if patience_counter >= patience:
+        #             break
         refined_model = NeuralNet([x_sub_train.shape[1]] +
-                                  multi_hidden_layers + [1],
-                                  activation=activation,
-                                  preset_weights=multi_params)
-        optimizer_refined = torch.optim.Adam(refined_model.parameters(),
-                                             lr=multi_learning_rate)
+                                multi_hidden_layers + [1],
+                                activation=activation)
+
+        # with torch.no_grad():
+        #     multi_model.forward_pass[4].weight.data[1] = torch.zeros(
+        #         (multi_hidden_layers[-1],), requires_grad=True)
+        #     multi_model.forward_pass[4].bias.data[1] = torch.zeros(
+        #         (1,), requires_grad=True)
+
+        optimizer_multi = torch.optim.Adam(refined_model.parameters(),
+                                           lr=multi_learning_rate)
+
+        e_combined = np.array(
+            [1 if (e1_sub_train[i] == 1) or (e2_sub_train[i] == 1) else 0 for i
+             in range(e1_sub_train.shape[0])]).astype('float32')
 
         for e in train_epochs:
-            refined_train_loss = 0
+            multi_train_loss = 0
             for batch in e:
                 X = torch.from_numpy(x_sub_train[batch, :])
-                Y = torch.from_numpy(e1_train[batch].reshape(-1, 1))
+                Y = torch.from_numpy(e_combined[batch].reshape(-1, 1))
+                # Y = torch.from_numpy(
+                #     np.concatenate([e1_sub_train[batch].reshape(-1, 1),
+                #                     e2_sub_train[batch].reshape(-1, 1)], axis=1)
+                # )
                 batch_loss = nn.functional.binary_cross_entropy(
                     refined_model(X), Y
                 )
-                refined_regularization_loss = 0
-                for param in refined_model.parameters():
-                    refined_regularization_loss += torch.sum(torch.abs(param))
-                batch_loss += multi_regularization * refined_regularization_loss
+                multi_regularization_loss = 0
+                for param in multi_model.parameters():
+                    multi_regularization_loss += torch.sum(torch.abs(param))
+                batch_loss += multi_regularization * multi_regularization_loss
 
-                optimizer_refined.zero_grad()
+                optimizer_multi.zero_grad()
                 batch_loss.backward()
-                optimizer_refined.step()
+                optimizer_multi.step()
 
-                refined_train_loss += batch_loss.item()
+                multi_train_loss += batch_loss.item()
 
-            refined_train_loss /= len(e)
-            refined_train_loss_list.append(refined_train_loss)
+            multi_train_loss /= len(e)
+            multi_train_loss_list.append(multi_train_loss)
 
             with torch.no_grad():
                 # multi_valid_loss = nn.functional.binary_cross_entropy(
@@ -278,21 +345,22 @@ def torch_classifier(single_config, multi_config,
                 #     )
                 # multi_valid_loss = multi_valid_loss.item()
                 # multi_valid_loss_list.append(multi_valid_loss)
-                refined_pred = refined_model(torch.from_numpy(x_sub_val)).numpy()[
+                multi_pred = refined_model(torch.from_numpy(x_sub_val)).numpy()[
                              :, 0]
-            refined_valid_loss = roc_auc_score(e1_sub_val, refined_pred)
-            refined_valid_loss_list.append(refined_valid_loss)
+            multi_valid_loss = roc_auc_score(e1_sub_val, multi_pred)
+            refined_valid_loss_list.append(multi_valid_loss)
 
             start_up_counter += 1
             if start_up_counter >= start_up:
-                if refined_valid_loss > best_refined_val_loss:
-                    best_refined_val_loss = refined_valid_loss
+                if multi_valid_loss > best_multi_val_loss:
+                    best_multi_val_loss = multi_valid_loss
                     patience_counter = 0
                 else:
                     patience_counter += 1
 
                 if patience_counter >= patience:
                     break
+
 
     if loss_plot:
         plt.figure()

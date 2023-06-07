@@ -79,29 +79,29 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                 "random_seed": r,
                                 "batch_size": batch_size
                             }
-                            # best_config_single = ray_tune(config=param_config,
-                            #                               fixed_var=other_var,
-                            #                               data=data,
-                            #                               )
-                            #
-                            # print(best_config_single)
-                            # best_config_multi = ray_tune(config=param_config,
-                            #                              fixed_var=other_var,
-                            #                              data=data,
-                            #                              )
-                            # print(best_config_multi)
-                            best_config_single = {
-                                'learning_rate': 1e-5,
-                                'batch_size': 200,
-                                'regularization': 1e-5,
-                                'hidden_layers': [200]
-                            }
-                            best_config_multi = {
-                                'learning_rate': 1e-5,
-                                'batch_size': 200,
-                                'regularization': 1e-5,
-                                'hidden_layers': [200, 2]
-                            }
+                            best_config_single = ray_tune(config=param_config,
+                                                          fixed_var=other_var,
+                                                          data=data,
+                                                          )
+
+                            print(best_config_single)
+                            best_config_multi = ray_tune(config=param_config,
+                                                         fixed_var=other_var,
+                                                         data=data,
+                                                         )
+                            print(best_config_multi)
+                            # best_config_single = {
+                            #     'learning_rate': 1e-5,
+                            #     'batch_size': 200,
+                            #     'regularization': 1e-5,
+                            #     'hidden_layers': [200]
+                            # }
+                            # best_config_multi = {
+                            #     'learning_rate': 1e-4,
+                            #     'batch_size': 200,
+                            #     'regularization': 1e-5,
+                            #     'hidden_layers': [20]
+                            # }
 
                         if run_refined:
                             single_auc, multi_auc, refined_auc, single_ap, \

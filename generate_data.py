@@ -27,7 +27,7 @@ def generate_data_shared_features(
 	# generate coefficient matrix defining random features
 	W = glorot_uniform(rs, n_features, n_random_features)
 
-	imp_covs = np.random.choice(range(n_features), size=50, replace=False)
+	imp_covs = np.random.choice(range(n_features), size=5, replace=False)
 
 	W = np.concatenate([W[i].reshape(1, -1) if i in imp_covs else np.zeros(
 		shape=(1, n_random_features)) for i in range(n_features)])
