@@ -29,7 +29,8 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
     if run_combined:
         columns = ['n', 'p', 'er', 'model',
                    'activation', 'iter', 'auc_single', 'auc_multi', 'auc_combined',
-                   'ap_single', 'ap_multi', 'ap_combined', 'config_single', 'config_multi']
+                   'ap_single', 'ap_multi', 'ap_combined', 'config_single', 'config_multi',
+                   'config_combined']
     else:
         columns = ['n', 'p', 'er', 'model',
                    'activation', 'iter', 'auc_single', 'auc_multi',
@@ -129,7 +130,8 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                                             single_ap,
                                                             multi_ap, combined_ap,
                                                             best_config_single,
-                                                            best_config_multi] + \
+                                                            best_config_multi,
+                                                               best_config_combined] + \
                                                             list(s.values())
                         else:
                             single_auc, multi_auc, single_ap, multi_ap = torch_classifier(
