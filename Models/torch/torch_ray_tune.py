@@ -3,10 +3,10 @@ from ray import tune
 from ray.air import Checkpoint, session
 from functools import partial
 from ray.tune.schedulers import ASHAScheduler
-from Models.torch.torch_classifier import torch_classifier
+from Models.torch.torch_param_search import torch_param_search
 
-def ray_tune(config, fixed_var, data):
 
+def ray_tune(config, fixed_var, data, final_layer_size, combine_labels):
     if not ray.is_initialized():
         ray.init()
 
@@ -15,9 +15,10 @@ def ray_tune(config, fixed_var, data):
         mode="max"
     )
 
-
     result = tune.run(
-        partial(torch_classifier, fixed_config=fixed_var, data=data, performance=False),
+        partial(torch_param_search, fixed_config=fixed_var, data=data,
+                final_layer_size=final_layer_size,
+                combine_labels=combine_labels),
         resources_per_trial={"cpu": 2},
         config=config,
         scheduler=scheduler,

@@ -12,7 +12,7 @@ from Models.torch.torch_ray_tune import ray_tune
 
 def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                 n_iters, datagen, similarity_measures, test_perc,
-                run_refined=False, print_time=True, print_output=False,
+                run_combined=False, print_time=True, print_output=False,
                 plot=False, loss_plot=False, early_stop=True, batch_size=200):
 
     sim_keys, sim_values = zip(*similarity_measures.items())
@@ -26,10 +26,10 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
         print(f'datagen argument not a valid datagen process')
         raise ValueError
 
-    if run_refined:
+    if run_combined:
         columns = ['n', 'p', 'er', 'model',
-                   'activation', 'iter', 'auc_single', 'auc_multi', 'auc_refined',
-                   'ap_single', 'ap_multi', 'ap_refined', 'config_single', 'config_multi']
+                   'activation', 'iter', 'auc_single', 'auc_multi', 'auc_combined',
+                   'ap_single', 'ap_multi', 'ap_combined', 'config_single', 'config_multi']
     else:
         columns = ['n', 'p', 'er', 'model',
                    'activation', 'iter', 'auc_single', 'auc_multi',
@@ -82,41 +82,52 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                             best_config_single = ray_tune(config=param_config,
                                                           fixed_var=other_var,
                                                           data=data,
+                                                          final_layer_size=1,
+                                                          combine_labels=False
                                                           )
 
                             print(best_config_single)
                             best_config_multi = ray_tune(config=param_config,
                                                          fixed_var=other_var,
                                                          data=data,
+                                                         final_layer_size=2,
+                                                         combine_labels=False
                                                          )
                             print(best_config_multi)
+                            if run_combined:
+                                best_config_combined = ray_tune(config=param_config,
+                                                                fixed_var=other_var,
+                                                                data=data,
+                                                                final_layer_size=1,
+                                                                combine_labels=True
+                                                             )
+                                print(best_config_combined)
                             # best_config_single = {
-                            #     'learning_rate': 1e-5,
+                            #     'learning_rate': 1e-3,
                             #     'batch_size': 200,
                             #     'regularization': 1e-5,
-                            #     'hidden_layers': [200]
+                            #     'hidden_layers': [20]
                             # }
                             # best_config_multi = {
-                            #     'learning_rate': 1e-4,
+                            #     'learning_rate': 1e-3,
                             #     'batch_size': 200,
                             #     'regularization': 1e-5,
                             #     'hidden_layers': [20]
                             # }
 
-                        if run_refined:
-                            single_auc, multi_auc, refined_auc, single_ap, \
-                            multi_ap, refined_ap = torch_classifier(
+                        if run_combined:
+                            single_auc, multi_auc, combined_auc, single_ap, \
+                            multi_ap, combined_ap = torch_classifier(
                                 single_config=best_config_single,
                                 multi_config=best_config_multi,
                                 fixed_config=other_var,
-                                data=data,
-                                performance=True, loss_plot=loss_plot,
-                                run_refined=True)
+                                data=data, loss_plot=loss_plot,
+                                combined_config=best_config_combined)
                             results.loc[len(results.index)] = [n, p, er, m,
                                                             act, r, single_auc,
-                                                            multi_auc, refined_auc,
+                                                            multi_auc, combined_auc,
                                                             single_ap,
-                                                            multi_ap, refined_ap,
+                                                            multi_ap, combined_ap,
                                                             best_config_single,
                                                             best_config_multi] + \
                                                             list(s.values())
@@ -126,7 +137,7 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                 multi_config=best_config_multi,
                                 fixed_config=other_var,
                                 data=data,
-                                performance=True, loss_plot=loss_plot)
+                                loss_plot=loss_plot)
                             results.loc[len(results.index)] = [n, p, er, m,
                                                             act, r, single_auc,
                                                             multi_auc,

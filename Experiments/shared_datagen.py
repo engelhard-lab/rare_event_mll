@@ -16,15 +16,14 @@ event_rate = [0.01]  # event rate for sample
 model_types = ['torch']  # options are 'sklearn' and 'torch'
 activations = ['relu']  # activation function. currently only support relu
 similarity_measures = {
-    'n_distinct': [1],  # n of distinct features for each label
+    'n_distinct': [0],  # n of distinct features for each label
     'n_random_features': [5],  # n of hidden features for each label
     'shared_second_layer_weights': [True]  # whether the labels share the same weights of their features
 }
 param_config = {
-    "learning_rate": tune.grid_search([1e-4]), # find a best lr -2, -3, -4, -5
-    "batch_size": tune.grid_search([200]), # fix at 200
-    "regularization": tune.grid_search([1e-5]), #without regularization
-    "hidden_layers": tune.grid_search([[200]]), # 10, 25, 50, 200
+    "learning_rate": tune.grid_search([1e-3, 1e-4, 1e-5]), # find a best lr -2, -3, -4, -5
+    "regularization": tune.grid_search([1e-5, 1e-6]), #without regularization
+    "hidden_layers": tune.grid_search([[200], [100], [50], [10]]), # 10, 25, 50, 200
 }
 
 n_iters = 1  # n of iterations to run each combination
@@ -32,7 +31,7 @@ test_perc = 0.2  # percent of samples to use for test set
 print_time = True  # whether to print updates after each combination is completes
 print_output = True  # whether to print details about each generated dataset
 plot = False  # whether to plot details of each generated dataset
-run_refined = True
+run_combined = True
 loss_plot = True  # whether to plot learning loss
 early_stop = True  # whether to do early stopping in training
 
@@ -43,7 +42,7 @@ results = base_auc_ap(n=n_patients, p=n_features, event_rate=event_rate,
                       similarity_measures=similarity_measures,
                       test_perc=test_perc, print_time=print_time,
                       print_output=print_output, plot=plot,
-                      run_refined=run_refined, loss_plot=loss_plot,
+                      run_combined=run_combined, loss_plot=loss_plot,
                       early_stop=early_stop)
 
 # results.to_csv(f'Results/{save_file}', index=False)

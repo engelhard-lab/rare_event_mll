@@ -1,17 +1,13 @@
-import copy
 import numpy as np
 import random
 
 import torch
 import torch.nn as nn
-from torch.utils.data import random_split
 from Models.torch.torch_base_nn import NeuralNet
 from Models.dataloader import create_batches
 from sklearn.metrics import roc_auc_score, average_precision_score
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-import ray
-from ray import tune
 
 
 def set_torch_seed(random_seed):
@@ -24,14 +20,9 @@ def set_torch_seed(random_seed):
     torch.backends.cudnn.deterministic = True
 
 
-def torch_classifier(single_config, multi_config,
-                     fixed_config,
-                     data,
-                     performance,
-                     loss_plot=False,
-                     epochs=400,
-                     patience=5, start_up=200, run_refined=False
-                     ):
+def torch_classifier(single_config, multi_config, fixed_config, data,
+                     loss_plot=False, epochs=800, patience=5, start_up=20,
+                     combined_config=None):
     
     x_train = data["x_train"]
     e1_train = data["e1_train"]
@@ -166,15 +157,10 @@ def torch_classifier(single_config, multi_config,
         optimizer_multi = torch.optim.Adam(multi_model.parameters(),
                                            lr=multi_learning_rate)
 
-        # e_combined = np.array(
-        #     [1 if (e1_sub_train[i] == 1) or (e2_sub_train[i] == 1) else 0 for i
-        #      in range(e1_sub_train.shape[0])]).astype('float32')
-
         for e in train_epochs:
             multi_train_loss = 0
             for batch in e:
                 X = torch.from_numpy(x_sub_train[batch, :])
-                # Y = torch.from_numpy(e_combined[batch].reshape(-1, 1))
                 Y = torch.from_numpy(
                     np.concatenate([e1_sub_train[batch].reshape(-1, 1),
                                     e2_sub_train[batch].reshape(-1, 1)], axis=1)
@@ -226,15 +212,18 @@ def torch_classifier(single_config, multi_config,
         multi_valid_auc = roc_auc_score(e1_sub_val, multi_pred)
         multi_valid_ap = average_precision_score(e1_sub_val, multi_pred)
 
+    if combined_config is not None:
+        combined_learning_rate = combined_config["learning_rate"]
+        combined_regularization = combined_config["regularization"]
+        combined_hidden_layers = combined_config["hidden_layers"]
 
-    refined_train_loss_list = []
-    refined_valid_loss_list = []
-    best_multi_val_loss = 0  # float("inf")
-    patience_counter = 0
-    start_up_counter = 0
-    set_torch_seed(random_seed)
+        combined_train_loss_list = []
+        combined_valid_loss_list = []
+        best_combined_val_loss = 0  # float("inf")
+        patience_counter = 0
+        start_up_counter = 0
+        set_torch_seed(random_seed)
 
-    if run_refined:
         # multi_params = []
         # for _, param in multi_model.named_parameters():
         #     if param.requires_grad:
@@ -293,9 +282,9 @@ def torch_classifier(single_config, multi_config,
         #
         #         if patience_counter >= patience:
         #             break
-        refined_model = NeuralNet([x_sub_train.shape[1]] +
-                                multi_hidden_layers + [1],
-                                activation=activation)
+        combined_model = NeuralNet([x_sub_train.shape[1]] +
+                                   combined_hidden_layers + [1],
+                                   activation=activation)
 
         # with torch.no_grad():
         #     multi_model.forward_pass[4].weight.data[1] = torch.zeros(
@@ -303,64 +292,52 @@ def torch_classifier(single_config, multi_config,
         #     multi_model.forward_pass[4].bias.data[1] = torch.zeros(
         #         (1,), requires_grad=True)
 
-        optimizer_multi = torch.optim.Adam(refined_model.parameters(),
-                                           lr=multi_learning_rate)
+        optimizer_combined = torch.optim.Adam(combined_model.parameters(),
+                                              lr=multi_learning_rate)
 
         e_combined = np.array(
             [1 if (e1_sub_train[i] == 1) or (e2_sub_train[i] == 1) else 0 for i
              in range(e1_sub_train.shape[0])]).astype('float32')
 
         for e in train_epochs:
-            multi_train_loss = 0
+            combined_train_loss = 0
             for batch in e:
                 X = torch.from_numpy(x_sub_train[batch, :])
                 Y = torch.from_numpy(e_combined[batch].reshape(-1, 1))
-                # Y = torch.from_numpy(
-                #     np.concatenate([e1_sub_train[batch].reshape(-1, 1),
-                #                     e2_sub_train[batch].reshape(-1, 1)], axis=1)
-                # )
                 batch_loss = nn.functional.binary_cross_entropy(
-                    refined_model(X), Y
+                    combined_model(X), Y
                 )
-                multi_regularization_loss = 0
-                for param in multi_model.parameters():
-                    multi_regularization_loss += torch.sum(torch.abs(param))
-                batch_loss += multi_regularization * multi_regularization_loss
+                combined_regularization_loss = 0
+                for param in combined_model.parameters():
+                    combined_regularization_loss += torch.sum(torch.abs(param))
+                batch_loss += combined_regularization * \
+                              combined_regularization_loss
 
-                optimizer_multi.zero_grad()
+                optimizer_combined.zero_grad()
                 batch_loss.backward()
-                optimizer_multi.step()
+                optimizer_combined.step()
 
-                multi_train_loss += batch_loss.item()
+                combined_train_loss += batch_loss.item()
 
-            multi_train_loss /= len(e)
-            multi_train_loss_list.append(multi_train_loss)
+            combined_train_loss /= len(e)
+            combined_train_loss_list.append(combined_train_loss)
 
             with torch.no_grad():
-                # multi_valid_loss = nn.functional.binary_cross_entropy(
-                #     # multi_model(torch.from_numpy(x_sub_val)),
-                #     multi_model(torch.from_numpy(x_sub_val))[:, 0].reshape(-1,
-                #                                                            1),
-                #     torch.from_numpy(e1_sub_val).reshape(-1, 1)
-                #     )
-                # multi_valid_loss = multi_valid_loss.item()
-                # multi_valid_loss_list.append(multi_valid_loss)
-                multi_pred = refined_model(torch.from_numpy(x_sub_val)).numpy()[
-                             :, 0]
-            multi_valid_loss = roc_auc_score(e1_sub_val, multi_pred)
-            refined_valid_loss_list.append(multi_valid_loss)
+                combined_pred = combined_model(
+                    torch.from_numpy(x_sub_val)).numpy()[:, 0]
+            combined_valid_loss = roc_auc_score(e1_sub_val, combined_pred)
+            combined_valid_loss_list.append(combined_valid_loss)
 
             start_up_counter += 1
             if start_up_counter >= start_up:
-                if multi_valid_loss > best_multi_val_loss:
-                    best_multi_val_loss = multi_valid_loss
+                if combined_valid_loss > best_combined_val_loss:
+                    best_combined_val_loss = combined_valid_loss
                     patience_counter = 0
                 else:
                     patience_counter += 1
 
                 if patience_counter >= patience:
                     break
-
 
     if loss_plot:
         plt.figure()
@@ -374,35 +351,27 @@ def torch_classifier(single_config, multi_config,
         plt.plot(range(len(multi_valid_loss_list)), multi_valid_loss_list,
                  color="gray", label="multi val loss", linestyle='dashed',
                  linewidth=2)
-        plt.plot(range(len(refined_valid_loss_list)), refined_valid_loss_list,
-                 color="orange", label="refined val loss", linestyle="dotted",
+        plt.plot(range(len(combined_valid_loss_list)), combined_valid_loss_list,
+                 color="orange", label="combined val loss", linestyle="dotted",
                  linewidth=2)
 
         plt.xlabel("Epochs")
         plt.legend()
         plt.show()
 
-    if performance:  
-        test = torch.from_numpy(x_test.astype('float32'))
-        with torch.no_grad():
-            single_pred = single_model(test).numpy()[:, 0]
-            multi_pred = multi_model(test).numpy()[:, 0]
-            if run_refined:
-                refined_pred = refined_model(test).numpy()[:, 0]
-        single_auc = roc_auc_score(e1_test, single_pred)
-        multi_auc = roc_auc_score(e1_test, multi_pred)
-        single_ap = average_precision_score(e1_test, single_pred)
-        multi_ap = average_precision_score(e1_test, multi_pred)
-        if run_refined:
-            refined_auc = roc_auc_score(e1_test, refined_pred)
-            refined_ap = average_precision_score(e1_test, refined_pred)
-            return single_auc, multi_auc, refined_auc, single_ap, multi_ap, refined_ap
+    test = torch.from_numpy(x_test.astype('float32'))
+    with torch.no_grad():
+        single_pred = single_model(test).numpy()[:, 0]
+        multi_pred = multi_model(test).numpy()[:, 0]
+        if combined_config is not None:
+            combined_pred = combined_model(test).numpy()[:, 0]
+    single_auc = roc_auc_score(e1_test, single_pred)
+    multi_auc = roc_auc_score(e1_test, multi_pred)
+    single_ap = average_precision_score(e1_test, single_pred)
+    multi_ap = average_precision_score(e1_test, multi_pred)
+    if combined_config is not None:
+        combined_auc = roc_auc_score(e1_test, combined_pred)
+        combined_ap = average_precision_score(e1_test, combined_pred)
+        return single_auc, multi_auc, combined_auc, single_ap, multi_ap, combined_ap
 
-        return single_auc, multi_auc, single_ap, multi_ap
-    
-    else:
-        return {
-            "valid_auc": single_valid_auc if single_config is not None else multi_valid_auc,
-            "valid_ap": single_valid_ap if single_config is not None else multi_valid_ap
-             }
-
+    return single_auc, multi_auc, single_ap, multi_ap
