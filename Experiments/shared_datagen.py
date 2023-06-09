@@ -26,13 +26,13 @@ param_config = {
     "hidden_layers": tune.grid_search([[200], [100], [50], [10]]), # 10, 25, 50, 200
 }
 
-n_iters = 1  # n of iterations to run each combination
+n_iters = 10  # n of iterations to run each combination
 test_perc = 0.2  # percent of samples to use for test set
 print_time = True  # whether to print updates after each combination is completes
 print_output = True  # whether to print details about each generated dataset
 plot = False  # whether to plot details of each generated dataset
 run_combined = True
-loss_plot = True  # whether to plot learning loss
+loss_plot = False  # whether to plot learning loss
 early_stop = True  # whether to do early stopping in training
 
 results = base_auc_ap(n=n_patients, p=n_features, event_rate=event_rate,

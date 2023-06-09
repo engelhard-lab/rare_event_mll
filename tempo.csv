@@ -1,2 +1,0 @@
-,n,p,er,model,activation,iter,auc_single,auc_multi,ap_single,ap_multi,config_single,config_multi,n_distinct,n_random_features,shared_second_layer_weights
-0,50000,10,0.01,torch,relu,5,0.8113208934644729,0.8127851824616233,0.046629422514251555,0.04550504032810859,"{'learning_rate': 1e-05, 'batch_size': 200, 'regularization': 1e-05, 'hidden_layers': [200]}","{'learning_rate': 1e-05, 'batch_size': 200, 'regularization': 1e-05, 'hidden_layers': [200]}",0,5,True

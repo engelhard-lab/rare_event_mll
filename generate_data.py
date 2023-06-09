@@ -13,10 +13,12 @@ def generate_data_shared_features(
 		step_size=STEP_SIZE, print_output=PRINT_OUTPUT, plot=PLOT
 ):
 
-	rs = np.random.RandomState(random_seed)
+	np.random.seed(random_seed)
+	imp_covs = np.random.choice(range(n_features), size=5, replace=False)
 
 	# generate N_FEATURES-dimensional feature vector for N_PATIENTS
 	# x = rs.randn(n_patients, n_features)
+	rs = np.random.RandomState(random_seed)
 	x = np.random.normal(0, scale=2.5, size=(n_patients, n_features))
 	# x_cont = np.random.normal(0, scale=1.5, size=(n_patients, n_features//2))
 	# x_bin = np.random.binomial(1, p=0.1, size=(n_patients, n_features//2))
@@ -26,8 +28,6 @@ def generate_data_shared_features(
 
 	# generate coefficient matrix defining random features
 	W = glorot_uniform(rs, n_features, n_random_features)
-
-	imp_covs = np.random.choice(range(n_features), size=5, replace=False)
 
 	W = np.concatenate([W[i].reshape(1, -1) if i in imp_covs else np.zeros(
 		shape=(1, n_random_features)) for i in range(n_features)])
