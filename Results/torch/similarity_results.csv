@@ -1,0 +1,2 @@
+n,p,er,model,activation,iter,auc_single,auc_multi,auc_combined,ap_single,ap_multi,ap_combined,config_single,config_multi,config_combined,similarity
+50000,100,0.01,torch,relu,5,0.675764995747375,0.6806383514308272,0.6941971692392187,0.020060850525224615,0.021069228382809977,0.025384281753531433,"{'learning_rate': 0.001, 'regularization': 1e-05, 'hidden_layers': [20]}","{'learning_rate': 0.001, 'regularization': 1e-05, 'hidden_layers': [20]}","{'learning_rate': 0.001, 'regularization': 1e-05, 'hidden_layers': [20]}",1.0

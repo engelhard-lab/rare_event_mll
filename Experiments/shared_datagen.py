@@ -1,5 +1,4 @@
 from Experiments.base_auc_ap import base_auc_ap
-import numpy as np
 from ray import tune
 
 """NOTE: the CWD needs to be set to the base directory. And you need to add
@@ -21,9 +20,9 @@ similarity_measures = {
     'shared_second_layer_weights': [True]  # whether the labels share the same weights of their features
 }
 param_config = {
-    "learning_rate": tune.grid_search([1e-3, 1e-4, 1e-5]), # find a best lr -2, -3, -4, -5
-    "regularization": tune.grid_search([1e-5, 1e-6]), #without regularization
-    "hidden_layers": tune.grid_search([[200], [100], [50], [10]]), # 10, 25, 50, 200
+    "learning_rate": tune.grid_search([1e-3, 1e-4]),
+    "regularization": tune.grid_search([1e-6]),
+    "hidden_layers": tune.grid_search([[200, 2], [10]]),
 }
 
 n_iters = 10  # n of iterations to run each combination
@@ -45,5 +44,4 @@ results = base_auc_ap(n=n_patients, p=n_features, event_rate=event_rate,
                       run_combined=run_combined, loss_plot=loss_plot,
                       early_stop=early_stop)
 
-# results.to_csv(f'Results/{save_file}', index=False)
-# results.to_csv('ray_tune_test2.csv', index=False)
+results.to_csv(f'Results/{save_file}', index=False)

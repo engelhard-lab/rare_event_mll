@@ -104,13 +104,16 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                             #     print("config_combined", best_config_combined)
                             # best_config_single = {
                             #     'learning_rate': 1e-3,
-                            #     'batch_size': 200,
                             #     'regularization': 1e-5,
                             #     'hidden_layers': [20]
                             # }
                             # best_config_multi = {
                             #     'learning_rate': 1e-3,
-                            #     'batch_size': 200,
+                            #     'regularization': 1e-5,
+                            #     'hidden_layers': [20]
+                            # }
+                            # best_config_combined = {
+                            #     'learning_rate': 1e-3,
                             #     'regularization': 1e-5,
                             #     'hidden_layers': [20]
                             # }
@@ -149,7 +152,6 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                                             best_config_single,
                                                             best_config_multi] + \
                                                             list(s.values())
-                        results.to_csv("tempo2.csv")
                 if print_time:
                     print(f'Activation: {act}, '
                         f'{" ".join([str(k) + ": "+str(v) for k,v in s.items()])}. '
