@@ -90,7 +90,7 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                             best_config_multi = ray_tune(config=param_config,
                                                          fixed_var=other_var,
                                                          data=data,
-                                                         final_layer_size=2,
+                                                         final_layer_size=3,
                                                          combine_labels=False
                                                          )
                             print("config_multi",best_config_multi)

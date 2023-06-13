@@ -72,15 +72,20 @@ def torch_param_search(config, fixed_config, data, final_layer_size=1,
             X = torch.from_numpy(x_sub_train[batch, :])
             if final_layer_size == 1:
                 Y = torch.from_numpy(e1_sub_train[batch].reshape(-1, 1))
+                batch_loss = nn.functional.binary_cross_entropy(
+                    model(X), Y
+                )
             else:
                 Y = torch.from_numpy(
-                    np.concatenate([e1_sub_train[batch].reshape(-1, 1),
+                    np.concatenate([(1 - np.logical_or(e1_sub_train[batch], e2_sub_train[batch], where=True).astype('float32')).reshape(-1, 1),
+                                    e1_sub_train[batch].reshape(-1, 1),
                                     e2_sub_train[batch].reshape(-1, 1)],
                                    axis=1)
                 )
-            batch_loss = nn.functional.binary_cross_entropy(
-                model(X), Y
-            )
+                batch_loss = nn.functional.cross_entropy(
+                    model(X), Y
+                )
+
 
             regularization_loss = 0
             for param in model.parameters():
@@ -92,7 +97,11 @@ def torch_param_search(config, fixed_config, data, final_layer_size=1,
             optimizer.step()
 
         with torch.no_grad():
-            pred = model(torch.from_numpy(x_sub_val)).numpy()[:, 0]
+            if final_layer_size == 1:
+                pred = model(torch.from_numpy(x_sub_val)).numpy()[:, 0]
+            else:
+                pred = (torch.nn.functional.softmax(model(torch.from_numpy(x_sub_val)))[:, 1] /
+                        torch.nn.functional.softmax(model(torch.from_numpy(x_sub_val)))[:, :2].sum(axis=1)).numpy()
         valid_loss = roc_auc_score(e1_sub_val, pred)
 
         start_up_counter += 1
@@ -107,7 +116,11 @@ def torch_param_search(config, fixed_config, data, final_layer_size=1,
                 break
 
     with torch.no_grad():
-        pred = model(torch.from_numpy(x_sub_val)).numpy()[:, 0]
+        if final_layer_size == 1:
+            pred = model(torch.from_numpy(x_sub_val)).numpy()[:, 0]
+        else:
+            pred = (torch.nn.functional.softmax(model(torch.from_numpy(x_sub_val)))[:, 1] /
+                    torch.nn.functional.softmax(model(torch.from_numpy(x_sub_val)))[:, :2].sum(axis=1)).numpy()
     valid_auc = roc_auc_score(e1_sub_val, pred)
     valid_ap = average_precision_score(e1_sub_val, pred)
 

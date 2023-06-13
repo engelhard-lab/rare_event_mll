@@ -8,7 +8,7 @@ the the path to rare_event_mll/ to your PYTHONPATH."""
 and they will all be run. be aware when combining multiple lists that this
 can lead to very long run time to complete all combinations."""
 
-save_file = 'torch/raytune_test2.csv'  # saved inside Results/ folder
+save_file = 'torch/raytune_test.csv'  # saved inside Results/ folder
 n_patients = 50000  # n of samples to generate
 n_features = 10  # n of features to generate
 event_rate = [0.01]  # event rate for sample
@@ -36,7 +36,7 @@ print_time = True  # whether to print updates after each combination is complete
 print_output = True  # whether to print details about each generated dataset
 plot = False  # whether to plot details of each generated dataset
 run_combined = False
-loss_plot = True  # whether to plot learning loss
+loss_plot = False  # whether to plot learning loss
 early_stop = True  # whether to do early stopping in training
 
 results = base_auc_ap(n=n_patients, p=n_features, event_rate=event_rate,
