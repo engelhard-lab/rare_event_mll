@@ -79,45 +79,30 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                 "random_seed": r,
                                 "batch_size": batch_size
                             }
-                            # best_config_single = ray_tune(config=param_config,
-                            #                               fixed_var=other_var,
-                            #                               data=data,
-                            #                               final_layer_size=1,
-                            #                               combine_labels=False
-                            #                               )
+                            best_config_single = ray_tune(config=param_config,
+                                                          fixed_var=other_var,
+                                                          data=data,
+                                                          final_layer_size=1,
+                                                          combine_labels=False
+                                                          )
 
-                            # print("config_single", best_config_single)
-                            # best_config_multi = ray_tune(config=param_config,
-                            #                              fixed_var=other_var,
-                            #                              data=data,
-                            #                              final_layer_size=2,
-                            #                              combine_labels=False
-                            #                              )
-                            # print("config_multi",best_config_multi)
-                            # if run_combined:
-                            #     best_config_combined = ray_tune(config=param_config,
-                            #                                     fixed_var=other_var,
-                            #                                     data=data,
-                            #                                     final_layer_size=1,
-                            #                                     combine_labels=True
-                            #                                  )
-                            #     print("config_combined", best_config_combined)
-                            # best_config_single = {
-                            #     'learning_rate': 1e-3,
-                            #     'regularization': 1e-5,
-                            #     'hidden_layers': [20]
-                            # }
-                            # best_config_multi = {
-                            #     'learning_rate': 1e-3,
-                            #     'regularization': 1e-5,
-                            #     'hidden_layers': [20]
-                            # }
-                            # best_config_combined = {
-                            #     'learning_rate': 1e-3,
-                            #     'regularization': 1e-5,
-                            #     'hidden_layers': [20]
-                            # }
-                        best_config_single, best_config_multi, best_config_combined = param_config, param_config, param_config
+                            print("config_single", best_config_single)
+                            best_config_multi = ray_tune(config=param_config,
+                                                         fixed_var=other_var,
+                                                         data=data,
+                                                         final_layer_size=2,
+                                                         combine_labels=False
+                                                         )
+                            print("config_multi",best_config_multi)
+                            if run_combined:
+                                best_config_combined = ray_tune(config=param_config,
+                                                                fixed_var=other_var,
+                                                                data=data,
+                                                                final_layer_size=1,
+                                                                combine_labels=True
+                                                             )
+                                print("config_combined", best_config_combined)
+                        # best_config_single, best_config_multi, best_config_combined = param_config, param_config, param_config
 
                         if run_combined:
                             single_auc, multi_auc, combined_auc, single_ap, \

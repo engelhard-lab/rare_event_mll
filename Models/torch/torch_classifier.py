@@ -85,7 +85,7 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
             for batch in e:
                 X = torch.from_numpy(x_sub_train[batch, :])
                 Y = torch.from_numpy(e1_sub_train[batch].reshape(-1, 1))
-                
+
                 batch_loss = nn.functional.binary_cross_entropy(
                     single_model(X), Y
                 )
@@ -145,7 +145,7 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
     # multi learning
     if multi_config is not None:
         multi_model = NeuralNet([x_sub_train.shape[1]] +
-                                multi_hidden_layers + [2],
+                                multi_hidden_layers + [3],
                                 activation=activation)
 
         # with torch.no_grad():
@@ -162,12 +162,12 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
             for batch in e:
                 X = torch.from_numpy(x_sub_train[batch, :])
                 Y = torch.from_numpy(
-                    np.concatenate([e1_sub_train[batch].reshape(-1, 1),
+                    np.concatenate([(1 - np.logical_or(e1_sub_train[batch], e2_sub_train[batch], where=True).astype('float32')).reshape(-1, 1),
+                                    e1_sub_train[batch].reshape(-1, 1),
                                     e2_sub_train[batch].reshape(-1, 1)], axis=1)
                 )
-                batch_loss = nn.functional.binary_cross_entropy(
-                    multi_model(X), Y
-                )
+                # Y = torch.from_numpy(e1_sub_train[batch].reshape(-1, 1))
+                batch_loss = nn.functional.cross_entropy(multi_model(X), Y)
                 multi_regularization_loss = 0
                 for param in multi_model.parameters():
                     multi_regularization_loss += torch.sum(torch.abs(param))
@@ -191,8 +191,10 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
                 #     )
                 # multi_valid_loss = multi_valid_loss.item()
                 # multi_valid_loss_list.append(multi_valid_loss)
-                multi_pred = multi_model(torch.from_numpy(x_sub_val)).numpy()[
-                             :, 0]
+                # multi_pred = multi_model(torch.from_numpy(x_sub_val)).numpy()[
+                #              :, 0]
+                multi_pred = (torch.nn.functional.softmax(multi_model(torch.from_numpy(x_sub_val)))[:, 1] /
+                              torch.nn.functional.softmax(multi_model(torch.from_numpy(x_sub_val)))[:, :2].sum(axis=1)).numpy()
             multi_valid_loss = roc_auc_score(e1_sub_val, multi_pred)
             multi_valid_loss_list.append(multi_valid_loss)
 
@@ -293,7 +295,7 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
         #         (1,), requires_grad=True)
 
         optimizer_combined = torch.optim.Adam(combined_model.parameters(),
-                                              lr=multi_learning_rate)
+                                              lr=combined_learning_rate)
 
         e_combined = np.array(
             [1 if (e1_sub_train[i] == 1) or (e2_sub_train[i] == 1) else 0 for i
@@ -341,19 +343,20 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
 
     if loss_plot:
         plt.figure()
-        # plt.plot(range(len(single_train_loss_list)), single_train_loss_list,
-        #          color="red", label="single train loss", linewidth=1.5)
+        plt.plot(range(len(single_train_loss_list)), single_train_loss_list,
+                 color="red", label="single train loss", linewidth=1.5)
         plt.plot(range(len(single_valid_loss_list)), single_valid_loss_list,
                  color="blue", label="single val loss", linewidth=2)
-        # plt.plot(range(len(multi_train_loss_list)), multi_train_loss_list,
-        #          color="black", label="multi train loss", linestyle='dashed',
-        #          linewidth=1.5)
+        plt.plot(range(len(multi_train_loss_list)), multi_train_loss_list,
+                 color="black", label="multi train loss", linestyle='dashed',
+                 linewidth=1.5)
         plt.plot(range(len(multi_valid_loss_list)), multi_valid_loss_list,
                  color="gray", label="multi val loss", linestyle='dashed',
                  linewidth=2)
-        plt.plot(range(len(combined_valid_loss_list)), combined_valid_loss_list,
-                 color="orange", label="combined val loss", linestyle="dotted",
-                 linewidth=2)
+        if combined_config is not None:
+            plt.plot(range(len(combined_valid_loss_list)), combined_valid_loss_list,
+                     color="orange", label="combined val loss", linestyle="dotted",
+                     linewidth=2)
 
         plt.xlabel("Epochs")
         plt.legend()
@@ -362,7 +365,8 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
     test = torch.from_numpy(x_test.astype('float32'))
     with torch.no_grad():
         single_pred = single_model(test).numpy()[:, 0]
-        multi_pred = multi_model(test).numpy()[:, 0]
+        multi_pred = (torch.nn.functional.softmax(multi_model(test))[:, 1] /
+                              torch.nn.functional.softmax(multi_model(test))[:, :2].sum(axis=1)).numpy()
         if combined_config is not None:
             combined_pred = combined_model(test).numpy()[:, 0]
     single_auc = roc_auc_score(e1_test, single_pred)

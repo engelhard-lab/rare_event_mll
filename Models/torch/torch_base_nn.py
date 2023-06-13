@@ -13,7 +13,8 @@ class NeuralNet(nn.Module):
                 sequence.append(nn.ReLU())
             l += 1
         sequence.append(nn.Linear(layers[l-1], layers[l]))
-        sequence.append(nn.Sigmoid())
+        if layers[l] == 1:
+            sequence.append(nn.Sigmoid())
         self.forward_pass = nn.Sequential(*sequence)
         if preset_weights is not None:
             self.preset_weights = preset_weights
