@@ -1,2 +1,9 @@
 n,p,er,model,activation,iter,R2_single,R2_multi,config_single,config_multi,n_distinct,n_random_features,shared_second_layer_weights
-50000,10,0.01,torch,relu,0,0.5707449913024902,0.632562518119812,"{'learning_rate': 0.001, 'regularization': 1e-05, 'hidden_layers': [100]}","{'learning_rate': 0.001, 'regularization': 1e-06, 'hidden_layers': [100]}",0,5,True
+50000,10,0.04,torch,relu,0,0.8771676942706108,1,"{'learning_rate': 0.001, 'regularization': 1e-05, 'hidden_layers': [10]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
+50000,10,0.04,torch,relu,1,0.8381770253181458,1,"{'learning_rate': 0.001, 'regularization': 1e-06, 'hidden_layers': [10]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
+50000,10,0.04,torch,relu,2,0.8813986554741859,1,"{'learning_rate': 0.001, 'regularization': 1e-06, 'hidden_layers': [50]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
+50000,10,0.04,torch,relu,3,0.8073868751525879,1,"{'learning_rate': 0.001, 'regularization': 1e-06, 'hidden_layers': [10]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
+50000,10,0.04,torch,relu,4,0.8021879941225052,1,"{'learning_rate': 0.001, 'regularization': 1e-05, 'hidden_layers': [10]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
+50000,10,0.04,torch,relu,5,0.9027960300445557,1,"{'learning_rate': 0.0001, 'regularization': 1e-05, 'hidden_layers': [10]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
+50000,10,0.04,torch,relu,6,0.6679775416851044,1,"{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [100]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
+50000,10,0.04,torch,relu,7,0.6642912328243256,1,"{'learning_rate': 0.001, 'regularization': 1e-06, 'hidden_layers': [10]}","{'learning_rate': 0.0001, 'regularization': 1e-06, 'hidden_layers': [200]}",0,5,True
