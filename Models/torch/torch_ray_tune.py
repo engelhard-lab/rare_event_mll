@@ -11,7 +11,7 @@ def ray_tune(config, fixed_var, data, final_layer_size, combine_labels):
         ray.init()
 
     scheduler = ASHAScheduler(
-        metric="valid_auc",
+        metric="valid_R2",
         mode="max"
     )
 
@@ -24,7 +24,7 @@ def ray_tune(config, fixed_var, data, final_layer_size, combine_labels):
         scheduler=scheduler,
     )
 
-    best_config = result.get_best_config(metric="valid_auc", mode="max")
+    best_config = result.get_best_config(metric="valid_R2", mode="max")
 
     if ray.is_initialized():
         ray.shutdown()

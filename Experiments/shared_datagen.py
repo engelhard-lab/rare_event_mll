@@ -30,7 +30,7 @@ param_config = {
 #     "hidden_layers": [200]
 # }
 
-n_iters = 5  # n of iterations to run each combination
+n_iters = 1  # n of iterations to run each combination
 test_perc = 0.2  # percent of samples to use for test set
 print_time = True  # whether to print updates after each combination is completes
 print_output = True  # whether to print details about each generated dataset

@@ -95,7 +95,7 @@ def generate_data_shared_features(
 	if plot:
 		plot_logits_and_probs(l1, l2, p1, p2)
 
-	return x, e1, e2
+	return x, p1, p2, e1, e2
 
 
 def generate_data_linear(

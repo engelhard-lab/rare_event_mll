@@ -26,6 +26,7 @@ def torch_param_search(config, fixed_config, data, final_layer_size=1,
     x_train = data["x_train"]
     e1_train = data["e1_train"]
     e2_train = data["e2_train"]
+    p1_train = data["p1_train"]
 
     activation = fixed_config["activation"]
     random_seed = fixed_config["random_seed"]
@@ -39,11 +40,14 @@ def torch_param_search(config, fixed_config, data, final_layer_size=1,
     x_train = x_train.astype('float32')
     e1_train = e1_train.astype('float32')
     e2_train = e2_train.astype('float32')
+    p1_train = p1_train.astype('float32')
 
-    x_sub_train, x_sub_val, e1_sub_train, \
-    e1_sub_val, e2_sub_train, e2_sub_val = \
-        train_test_split(x_train, e1_train.astype('float32'),
-                         e2_train.astype('float32'), random_state=random_seed,
+    x_sub_train, x_sub_val, \
+    e1_sub_train, e1_sub_val,\
+    e2_sub_train, e2_sub_val, \
+    p1_sub_train, p1_sub_val = \
+        train_test_split(x_train, e1_train, e2_train, p1_train, 
+                         random_state=random_seed,
                          test_size=0.2, stratify=e1_train)
 
     train_epochs = create_batches(num_samples=x_sub_train.shape[0], 
@@ -121,7 +125,5 @@ def torch_param_search(config, fixed_config, data, final_layer_size=1,
         else:
             pred = (torch.nn.functional.softmax(model(torch.from_numpy(x_sub_val)))[:, 1] /
                     torch.nn.functional.softmax(model(torch.from_numpy(x_sub_val)))[:, :2].sum(axis=1)).numpy()
-    valid_auc = roc_auc_score(e1_sub_val, pred)
-    valid_ap = average_precision_score(e1_sub_val, pred)
-
-    return {"valid_auc": valid_auc, "valid_ap": valid_ap}
+    valid_R2 = 1-np.sum((p1_sub_val-pred)**2)/np.sum((p1_sub_val-np.mean(p1_sub_val))**2)
+    return {"valid_R2": valid_R2}

@@ -29,6 +29,7 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
     e2_train = data["e2_train"]
     x_test = data["x_test"]
     e1_test = data["e1_test"]
+    p1_test = data["p1_test"]
 
     activation = fixed_config["activation"]
     random_seed = fixed_config["random_seed"]
@@ -51,6 +52,7 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
     x_test = x_test.astype('float32')
     e1_test = e1_test.astype('float32')
     e2_train = e2_train.astype('float32')
+    p1_test = p1_test.astype('float32')
 
     x_sub_train, x_sub_val, e1_sub_train, \
     e1_sub_val, e2_sub_train, e2_sub_val = \
@@ -128,12 +130,6 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
                 if patience_counter >= patience:
                     break
 
-        with torch.no_grad():
-            single_pred = single_model(torch.from_numpy(x_sub_val)).numpy()[:, 0]
-        single_valid_auc = roc_auc_score(e1_sub_val, single_pred)
-        single_valid_ap = average_precision_score(e1_sub_val, single_pred)
-        
-    
 
     multi_train_loss_list = []
     multi_valid_loss_list = []
@@ -208,11 +204,6 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
 
                 if patience_counter >= patience:
                     break
-
-        with torch.no_grad():
-            multi_pred = multi_model(torch.from_numpy(x_sub_val)).numpy()[:, 0]
-        multi_valid_auc = roc_auc_score(e1_sub_val, multi_pred)
-        multi_valid_ap = average_precision_score(e1_sub_val, multi_pred)
 
     if combined_config is not None:
         combined_learning_rate = combined_config["learning_rate"]
@@ -369,13 +360,11 @@ def torch_classifier(single_config, multi_config, fixed_config, data,
                               torch.nn.functional.softmax(multi_model(test))[:, :2].sum(axis=1)).numpy()
         if combined_config is not None:
             combined_pred = combined_model(test).numpy()[:, 0]
-    single_auc = roc_auc_score(e1_test, single_pred)
-    multi_auc = roc_auc_score(e1_test, multi_pred)
-    single_ap = average_precision_score(e1_test, single_pred)
-    multi_ap = average_precision_score(e1_test, multi_pred)
-    if combined_config is not None:
-        combined_auc = roc_auc_score(e1_test, combined_pred)
-        combined_ap = average_precision_score(e1_test, combined_pred)
-        return single_auc, multi_auc, combined_auc, single_ap, multi_ap, combined_ap
+    single_R2 = 1-np.sum((p1_test-single_pred)**2)/np.sum((p1_test-np.mean(p1_test))**2)
+    multi_R2 = 1-np.sum((p1_test-multi_pred)**2)/np.sum((p1_test-np.mean(p1_test))**2)
 
-    return single_auc, multi_auc, single_ap, multi_ap
+    if combined_config is not None:
+        combined_R2 = 1-np.sum((p1_test-combined_pred)**2)/np.sum((p1_test-np.mean(p1_test))**2)
+        return single_R2, multi_R2, combined_R2
+
+    return single_R2, multi_R2

@@ -33,8 +33,8 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                    'config_combined']
     else:
         columns = ['n', 'p', 'er', 'model',
-                   'activation', 'iter', 'auc_single', 'auc_multi',
-                   'ap_single', 'ap_multi', 'config_single', 'config_multi']
+                   'activation', 'iter', 'R2_single', 'R2_multi',
+                   'config_single', 'config_multi']
 
     results = pd.DataFrame(columns=columns + list(similarity_measures.keys()))
     start = time.time()
@@ -51,10 +51,11 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                         }
                     datagen_args['random_seed'] = r
                     datagen_args.update(s)
-                    x, e1, e2 = datagen(**datagen_args)
+                    x, p1, p2, e1, e2 = datagen(**datagen_args)
                     x_train, x_test, \
+                    p1_train, p1_test, \
                     e1_train, e1_test, \
-                    e2_train, e2_test = train_test_split(x, e1, e2,
+                    e2_train, e2_test = train_test_split(x, p1, e1, e2,
                                                         random_state=r,
                                                         test_size=test_perc,
                                                          stratify=e1)
@@ -71,8 +72,10 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                 "x_train": x_train,
                                 "e1_train": e1_train,
                                 "e2_train": e2_train, 
+                                "p1_train": p1_train,
                                 "x_test": x_test,
                                 "e1_test": e1_test,
+                                "p1_test": p1_test,
                             }
                             other_var = {
                                 "activation": act, 
@@ -123,20 +126,19 @@ def base_auc_ap(n, p, event_rate, model_types, activations, param_config,
                                                                best_config_combined] + \
                                                             list(s.values())
                         else:
-                            single_auc, multi_auc, single_ap, multi_ap = torch_classifier(
+                            single_R2, multi_R2 = torch_classifier(
                                 single_config=best_config_single,
                                 multi_config=best_config_multi,
                                 fixed_config=other_var,
                                 data=data,
                                 loss_plot=loss_plot)
                             results.loc[len(results.index)] = [n, p, er, m,
-                                                            act, r, single_auc,
-                                                            multi_auc,
-                                                            single_ap,
-                                                            multi_ap,
+                                                            act, r, single_R2,
+                                                            multi_R2,
                                                             best_config_single,
                                                             best_config_multi] + \
                                                             list(s.values())
+                            results.to_csv("tempo.csv")
                 if print_time:
                     print(f'Activation: {act}, '
                         f'{" ".join([str(k) + ": "+str(v) for k,v in s.items()])}. '
