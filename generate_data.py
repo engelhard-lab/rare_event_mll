@@ -72,7 +72,7 @@ def generate_data_shared_features(
 	offset2 = find_offset(
 		rs,
 		np.dot(h2, c2),
-		event_rate,
+		0.03,
 		step_size
 	)
 	l2 = np.dot(h2, c2) - offset2
