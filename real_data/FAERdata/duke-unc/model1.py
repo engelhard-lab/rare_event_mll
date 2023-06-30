@@ -1,0 +1,98 @@
+#%%
+import numpy as np
+import pandas as pd
+import random
+import torch
+from torch_training import grid_search
+from sklearn.model_selection import KFold
+
+#%%
+random_seed=2023
+same_stop = True
+config_options = {
+    "learning_rate": [1e-3, 1e-4],
+    "batch_size": [32, 64, 256],
+    "hidden_layers": [[20], [50], [200], [1000]],
+}
+
+
+#%%
+def set_torch_seed(random_seed):
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)  # if you are using multi-GPU.
+    np.random.seed(random_seed)  # Numpy module.
+    random.seed(random_seed)  # Python random module.
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+
+#%%
+set_torch_seed(random_seed)
+
+data = pd.read_csv("Duke-UNC Preeclampsia Cohort.csv")
+ident_var = ["PATID"]
+model2_var = ['HF_edema.post.1y',
+              'puerperalCVD.post.1y',
+              "acuteRF.post.1y",
+              ]
+outcome_var = [
+               "HF_edema.delivery", 
+               "puerperalCVD.delivery", 
+               "acuteRF.delivery",
+               ]
+rm_var = ['cardiacSMM.delivery','cardiacSMM.post.1y',
+          'RACE','ETHNICITY',
+          ]
+data = data.drop(columns=ident_var+model2_var+rm_var)
+data = pd.get_dummies(data, drop_first=True)
+data = data.sample(frac=1).reset_index(drop=True)
+
+# normalize the numeric predictors
+numeric_var = ['age', 'GAnum']
+mean = data[numeric_var].mean()
+std = data[numeric_var].std()
+data.loc[:, numeric_var] = (data[numeric_var] - mean) / std
+
+outcome = data[outcome_var]
+outcome["no_event"] = (outcome.sum(axis=1)==0).astype('float32')
+outcome = np.array(outcome)
+x = np.array(data.drop(columns=outcome_var))
+
+#%%
+# Cross validation
+columns = ['sin_auc0', 'sig_auc0', 'smx_auc0',
+        'sin_auc1', 'sig_auc1', 'smx_auc1',
+        'sin_auc2', 'sig_auc2', 'smx_auc2',
+        'sin_ap0', 'sig_ap0', 'smx_ap0',
+        'sin_ap1', 'sig_ap1', 'smx_ap1',
+        'sin_ap2', 'sig_ap2', 'smx_ap2']
+performance = pd.DataFrame(columns=columns)
+config_inf = pd.DataFrame(columns=["lr", "batch", "hidden"])
+
+kf = KFold(n_split=5, shuffle=True, random_state=random_seed)
+i = 1
+for train_index, test_index in kf.split(data):
+    x_train, x_test = x[train_index], x[test_index]
+    y_train, y_test = outcome[train_index], outcome[test_index]
+
+    input_data = {
+        "x_train":x_train,
+        "x_test":x_test,
+        "y_train":y_train,
+        "y_test":y_test,
+    }
+        
+    best_performance, best_config = grid_search(
+        configs = config_options,
+        input_data = input_data,
+        random_seed = random_seed,
+        same_stop = same_stop,
+        )
+    performance.loc[i,:] = best_performance
+    performance.to_csv("model1_performance.csv")
+    config_inf = pd.concat([config_inf, best_config], axis=0)
+    config_inf.to_csv("model1_config.csv")
+    i+=1
+
+
+# %%
