@@ -1,7 +1,5 @@
 from generate_data import generate_data_linear, generate_data_shared_features
-from Models.sklearn.mlp_classifier import sklearn_mlp
-from Models.torch.torch_classifier import torch_classifier
-from Models.torch.torch_training import torch_classifier, grid_search
+from Models.torch.torch_training import torch_classifier
 
 import itertools
 import pandas as pd
