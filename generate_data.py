@@ -8,26 +8,25 @@ PLOT = False
 
 
 def generate_data_shared_features(
-		n_patients, n_features, event_rate, n_distinct, n_random_features,
+		n_patients, n_features, event_rate1, event_rate2, n_distinct, n_random_features,
 		shared_second_layer_weights, random_seed=RANDOM_SEED,
 		step_size=STEP_SIZE, print_output=PRINT_OUTPUT, plot=PLOT
 ):
 
-	np.random.seed(random_seed)
-	imp_covs = np.random.choice(range(n_features), size=5, replace=False)
-
 	# generate N_FEATURES-dimensional feature vector for N_PATIENTS
+
 	# x = rs.randn(n_patients, n_features)
+	np.random.seed(random_seed)
 	rs = np.random.RandomState(random_seed)
-	x = np.random.normal(0, scale=2.5, size=(n_patients, n_features))
-	# x_cont = np.random.normal(0, scale=1.5, size=(n_patients, n_features//2))
-	# x_bin = np.random.binomial(1, p=0.1, size=(n_patients, n_features//2))
-	# x = np.concatenate([x_cont, x_bin], axis=1)
+	# x = rs.randn(n_patients, n_features)*5
+	x = np.random.normal(0, scale = 5, size=(n_patients, n_features))
 
 	n_overlapping = n_random_features - n_distinct
 
 	# generate coefficient matrix defining random features
 	W = glorot_uniform(rs, n_features, n_random_features)
+
+	imp_covs = np.random.choice(range(n_features), size=5, replace=False)
 
 	W = np.concatenate([W[i].reshape(1, -1) if i in imp_covs else np.zeros(
 		shape=(1, n_random_features)) for i in range(n_features)])
@@ -41,7 +40,7 @@ def generate_data_shared_features(
 	offset1 = find_offset(
 		rs,
 		np.dot(h1, c1),
-		event_rate,
+		event_rate1,
 		step_size
 	)
 
@@ -72,12 +71,37 @@ def generate_data_shared_features(
 	offset2 = find_offset(
 		rs,
 		np.dot(h2, c2),
-		0.03,
+		event_rate2,
 		step_size
 	)
 	l2 = np.dot(h2, c2) - offset2
 	p2 = sigmoid(l2)
 	e2 = bernoulli_draw(rs, p2)
+	
+	# # generate labels for event 3
+	# W3 = glorot_uniform(rs, n_features, n_distinct).reshape(n_features,
+	# 														n_distinct)
+
+	# W3 = np.concatenate([W3[i].reshape(1, -1) if i in imp_covs else np.zeros(
+	# 	shape=(1, n_distinct)) for i in range(n_features)])
+
+	# h3 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W3)], axis=1)
+	# if shared_second_layer_weights:
+	# 	c3 = np.concatenate([c1[:n_overlapping],
+	# 						 glorot_uniform(rs, n_distinct, 1).reshape(-1,)
+	# 						 ])
+	# else:
+	# 	c3 = glorot_uniform(rs, n_features, n_random_features)
+
+	# offset3 = find_offset(
+	# 	rs,
+	# 	np.dot(h3, c3),
+	# 	0.02,
+	# 	step_size
+	# )
+	# l3 = np.dot(h3, c3) - offset3
+	# p3 = sigmoid(l3)
+	# e3 = bernoulli_draw(rs, p3)
 
 	if print_output:
 		print('Dot product of u1 and u2: %.2f' % np.dot(normalize(c1),
@@ -91,11 +115,12 @@ def generate_data_shared_features(
 		print('Rate of event 2: %.3f' % np.mean(e2))
 		print('Rate of co-occurrence: %.3f' % np.mean(e1 & e2))
 		print('Correlation between events: %.3f' % np.corrcoef(e1, e2)[0, 1])
+		print('STD p1: %.3f' % np.std(p1))
 
 	if plot:
 		plot_logits_and_probs(l1, l2, p1, p2)
 
-	return x, p1, p2, e1, e2
+	return x, p1, e1, e2
 
 
 def generate_data_linear(
@@ -224,3 +249,9 @@ def normalize(v):
 
 def relu(v):
 	return np.maximum(v, 0)
+
+# generate_data_shared_features(
+# 		n_patients=250000, n_features=50, event_rate1=0.001, event_rate2=0.005, n_distinct=0, n_random_features=10,
+# 		shared_second_layer_weights=True, random_seed=3,
+# 		step_size=1e-3, print_output=True, plot=True,
+# )
