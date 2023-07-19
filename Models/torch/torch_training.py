@@ -159,8 +159,8 @@ def torch_classifier(config,
     else:
         with torch.no_grad():
             pred = sin_decoder(sin_encoder(torch.from_numpy(x_test)))
-        sin_auc = roc_auc_score(y_test[:,1], pred)
-        sin_ap = average_precision_score(y_test[:,1], pred)
+        sin_auc = roc_auc_score(y_test[:,0], pred)
+        sin_ap = average_precision_score(y_test[:,0], pred)
         sin_r2 = r2_score(y_test[:,-1], pred)
         sin_cov = stats.spearmanr(y_test[:,-1], pred).correlation
     
