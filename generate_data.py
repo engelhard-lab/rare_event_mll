@@ -20,18 +20,25 @@ def generate_data_shared_features(
 	rs = np.random.RandomState(random_seed)
 	# x = rs.randn(n_patients, n_features)*5
 	x = np.random.normal(0, scale = 5, size=(n_patients, n_features))
+	
+	n_imp = n_random_features*2
+	imp_covs = np.random.choice(range(n_features), size=n_imp, replace=False)
 
 	n_overlapping = n_random_features - n_distinct
 
 	# generate coefficient matrix defining random features
-	W = glorot_uniform(rs, n_features, n_random_features)
+	weight = random_orthogonal_set(n_random_features*2, n_imp, rs)
+	
+	W1 = np.empty((0, n_random_features))
+	n=0
+	for i in range(n_features):
+		if i in imp_covs:
+			W1 = np.concatenate((W1, weight[:n_random_features, n].reshape(-1,1).T))
+			n+=1
+		else:
+			W1 = np.concatenate((W1, np.zeros(shape=(1, n_random_features))))
 
-	imp_covs = np.random.choice(range(n_features), size=5, replace=False)
-
-	W = np.concatenate([W[i].reshape(1, -1) if i in imp_covs else np.zeros(
-		shape=(1, n_random_features)) for i in range(n_features)])
-
-	h1 = relu(x @ W)
+	h1 = relu(x @ W1)
 
 	# generate coefficient vector for second layer
 	c1 = glorot_uniform(rs, n_random_features, 1)
@@ -54,13 +61,18 @@ def generate_data_shared_features(
 	e1 = bernoulli_draw(rs, p1)
 
 	# generate labels for event 2
-	W2 = glorot_uniform(rs, n_features, n_distinct).reshape(n_features,
-															n_distinct)
+	W2 = np.empty((0, n_random_features))
+	n=0
+	for i in range(n_features):
+		if i in imp_covs:
+			W2 = np.concatenate((W2, weight[n_random_features:, n].reshape(-1,1).T))
+			n+=1
+		else:
+			W2 = np.concatenate((W2, np.zeros(shape=(1, n_random_features))))
 
-	W2 = np.concatenate([W2[i].reshape(1, -1) if i in imp_covs else np.zeros(
-		shape=(1, n_distinct)) for i in range(n_features)])
-
-	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W2)], axis=1)
+	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]),
+						relu(x @ W2)[:, n_overlapping:]],
+						axis=1)
 	if shared_second_layer_weights:
 		c2 = np.concatenate([c1[:n_overlapping],
 							 glorot_uniform(rs, n_distinct, 1).reshape(-1,)
@@ -77,31 +89,6 @@ def generate_data_shared_features(
 	l2 = np.dot(h2, c2) - offset2
 	p2 = sigmoid(l2)
 	e2 = bernoulli_draw(rs, p2)
-	
-	# # generate labels for event 3
-	# W3 = glorot_uniform(rs, n_features, n_distinct).reshape(n_features,
-	# 														n_distinct)
-
-	# W3 = np.concatenate([W3[i].reshape(1, -1) if i in imp_covs else np.zeros(
-	# 	shape=(1, n_distinct)) for i in range(n_features)])
-
-	# h3 = np.concatenate([np.copy(h1[:, :n_overlapping]), relu(x @ W3)], axis=1)
-	# if shared_second_layer_weights:
-	# 	c3 = np.concatenate([c1[:n_overlapping],
-	# 						 glorot_uniform(rs, n_distinct, 1).reshape(-1,)
-	# 						 ])
-	# else:
-	# 	c3 = glorot_uniform(rs, n_features, n_random_features)
-
-	# offset3 = find_offset(
-	# 	rs,
-	# 	np.dot(h3, c3),
-	# 	0.02,
-	# 	step_size
-	# )
-	# l3 = np.dot(h3, c3) - offset3
-	# p3 = sigmoid(l3)
-	# e3 = bernoulli_draw(rs, p3)
 
 	if print_output:
 		print('Dot product of u1 and u2: %.2f' % np.dot(normalize(c1),
@@ -122,6 +109,21 @@ def generate_data_shared_features(
 
 	return x, p1, e1, e2
 
+def random_orthogonal_set(n_vectors, dim, rs):
+	# rank check
+	if n_vectors>dim:
+		return "n_vectors > dim, can't create orthogonal basis"
+	else:
+		vector_set = [normalize(rs.rand(dim))]
+
+		for i in range(1, n_vectors):
+			new_vector = rs.rand(dim)
+			for j in range(i):
+				projection = np.dot(new_vector, vector_set[j])/np.dot(vector_set[j],vector_set[j])*vector_set[j]
+				new_vector -= projection
+			vector_set.append(normalize(new_vector))
+
+		return(np.array(vector_set))
 
 def generate_data_linear(
 		n_patients, n_features, event_rate, similarity,
@@ -251,7 +253,7 @@ def relu(v):
 	return np.maximum(v, 0)
 
 # generate_data_shared_features(
-# 		n_patients=250000, n_features=50, event_rate1=0.001, event_rate2=0.005, n_distinct=0, n_random_features=10,
+# 		n_patients=250000, n_features=50, event_rate1=0.001, event_rate2=0.005, n_distinct=4, n_random_features=10,
 # 		shared_second_layer_weights=True, random_seed=3,
 # 		step_size=1e-3, print_output=True, plot=True,
 # )
