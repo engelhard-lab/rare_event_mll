@@ -21,22 +21,16 @@ def generate_data_shared_features(
 	# x = rs.randn(n_patients, n_features)*5
 	x = np.random.normal(0, scale = 5, size=(n_patients, n_features))
 	
-	n_imp = n_random_features*2
-	imp_covs = np.random.choice(range(n_features), size=n_imp, replace=False)
-
+	n_imp = n_random_features*4
 	n_overlapping = n_random_features - n_distinct
 
 	# generate coefficient matrix defining random features
 	weight = random_orthogonal_set(n_random_features*2, n_imp, rs)
 	
-	W1 = np.empty((0, n_random_features))
-	n=0
-	for i in range(n_features):
-		if i in imp_covs:
-			W1 = np.concatenate((W1, weight[:n_random_features, n].reshape(-1,1).T))
-			n+=1
-		else:
-			W1 = np.concatenate((W1, np.zeros(shape=(1, n_random_features))))
+	W1 = np.concatenate(
+		(weight[:n_random_features,:].T,
+		np.zeros(shape=(n_features-n_imp, n_random_features))),
+		axis=0)
 
 	h1 = relu(x @ W1)
 
@@ -61,14 +55,10 @@ def generate_data_shared_features(
 	e1 = bernoulli_draw(rs, p1)
 
 	# generate labels for event 2
-	W2 = np.empty((0, n_random_features))
-	n=0
-	for i in range(n_features):
-		if i in imp_covs:
-			W2 = np.concatenate((W2, weight[n_random_features:, n].reshape(-1,1).T))
-			n+=1
-		else:
-			W2 = np.concatenate((W2, np.zeros(shape=(1, n_random_features))))
+	W2 = np.concatenate(
+		(weight[n_random_features:,:].T,
+		np.zeros(shape=(n_features-n_imp, n_random_features))),
+		axis=0)
 
 	h2 = np.concatenate([np.copy(h1[:, :n_overlapping]),
 						relu(x @ W2)[:, n_overlapping:]],
@@ -252,8 +242,8 @@ def normalize(v):
 def relu(v):
 	return np.maximum(v, 0)
 
-# generate_data_shared_features(
-# 		n_patients=250000, n_features=50, event_rate1=0.001, event_rate2=0.005, n_distinct=4, n_random_features=10,
-# 		shared_second_layer_weights=True, random_seed=3,
-# 		step_size=1e-3, print_output=True, plot=True,
-# )
+generate_data_shared_features(
+		n_patients=25000, n_features=50, event_rate1=0.001, event_rate2=0.005, n_distinct=4, n_random_features=10,
+		shared_second_layer_weights=True, random_seed=3,
+		step_size=1e-3, print_output=True, plot=True,
+)
