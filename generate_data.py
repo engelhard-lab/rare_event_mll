@@ -26,7 +26,7 @@ def generate_data_shared_features(
 
 	# generate coefficient matrix defining random features
 	weight = random_orthogonal_set(n_random_features*2, n_imp, rs)
-	
+	weight = weight * (np.sqrt(6/(n_random_features*2 + n_imp)))
 	W1 = np.concatenate(
 		(weight[:n_random_features,:].T,
 		np.zeros(shape=(n_features-n_imp, n_random_features))),
@@ -68,7 +68,7 @@ def generate_data_shared_features(
 							 glorot_uniform(rs, n_distinct, 1).reshape(-1,)
 							 ])
 	else:
-		c2 = glorot_uniform(rs, n_features, n_random_features)
+		c2 = glorot_uniform(rs, n_random_features, 1)
 
 	offset2 = find_offset(
 		rs,
@@ -109,7 +109,7 @@ def random_orthogonal_set(n_vectors, dim, rs):
 		for i in range(1, n_vectors):
 			new_vector = rs.rand(dim)
 			for j in range(i):
-				projection = np.dot(new_vector, vector_set[j])/np.dot(vector_set[j],vector_set[j])*vector_set[j]
+				projection = np.dot(new_vector, vector_set[j])*vector_set[j]
 				new_vector -= projection
 			vector_set.append(normalize(new_vector))
 
@@ -242,8 +242,8 @@ def normalize(v):
 def relu(v):
 	return np.maximum(v, 0)
 
-generate_data_shared_features(
-		n_patients=25000, n_features=50, event_rate1=0.001, event_rate2=0.005, n_distinct=4, n_random_features=10,
-		shared_second_layer_weights=True, random_seed=3,
-		step_size=1e-3, print_output=True, plot=True,
-)
+# generate_data_shared_features(
+# 		n_patients=25000, n_features=50, event_rate1=0.001, event_rate2=0.005, n_distinct=4, n_random_features=10,
+# 		shared_second_layer_weights=True, random_seed=3,
+# 		step_size=1e-3, print_output=True, plot=True,
+# )
