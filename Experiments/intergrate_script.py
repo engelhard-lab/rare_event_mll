@@ -4,8 +4,12 @@ import numpy as np
 from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.model_selection import train_test_split
 import time
+
+import sys
+sys.path.append('E:\\duke\\MLL\\git\\rare_event_mll')
+
 from generate_data import generate_data_shared_features
-from Models.torch.torch_training import torch_classifier
+from Models.torch.torch_training import torch_classifier, torch_performance, split_set
 
 """NOTE: the CWD needs to be set to the base directory. And you need to add
 the the path to rare_event_mll/ to your PYTHONPATH."""
@@ -117,20 +121,23 @@ for event_rate in event_rate1:
                                                         test_size=test_perc,
                                                         stratify=e1)
     
-                    input_data = {
-                        "x_train": x_train,
-                        "x_test": x_test,
-                        "y_train": np.concatenate([e1_train.reshape(-1, 1),
-                                                    e2_train.reshape(-1, 1),
-                                                    p1_train.reshape(-1, 1)], axis=1),
-                        "y_test": np.concatenate([e1_test.reshape(-1, 1),
-                                                    e2_test.reshape(-1, 1),
-                                                    p1_test.reshape(-1, 1)], axis=1),
-                    }
+                    y_train = np.concatenate([e1_train.reshape(-1, 1),
+                                              e2_train.reshape(-1, 1),
+                                              p1_train.reshape(-1, 1)], axis=1)
+                    y_test = np.concatenate([e1_test.reshape(-1, 1),
+                                             e2_test.reshape(-1, 1),
+                                             p1_test.reshape(-1, 1)], axis=1)
                     
+                    x_train = x_train.astype('float32')
+                    y_train = y_train.astype('float32')
+                    x_test = x_test.astype('float32')
+                    y_test = y_test.astype('float32')
+
+                    x_sub_train, x_sub_val = split_set(x_train, 0.75)
+                    y_sub_train, y_sub_val = split_set(y_train, 0.75)
+
                     if single_first_time:
                         best_perform_sin = 0
-                        best_config_sin = {}
                         for lr in param_config["learning_rate"]:
                             for batch in param_config["batch_size"]:
                                 for h in param_config["hidden_layers"]:
@@ -141,27 +148,30 @@ for event_rate in event_rate1:
                                             "hidden_layers": h,
                                             "regularization": lam,
                                         }
-                                        performance = torch_classifier(config=config,
-                                                                    input_data=input_data,
-                                                                    valid=True,
-                                                                    random_seed=r,
-                                                                    method="single")
-                                        if performance > best_perform_sin:
+                                        sin_model = torch_classifier(x_train=x_train, y_train=y_train[:,:-1],
+                                                                     config=config,
+                                                                     random_seed=r,
+                                                                     method="single")
+
+                                        performance = torch_performance(model=sin_model,
+                                                                        x_test=x_sub_val, y_test=y_sub_val[:,0])
+                                        if performance["auc"] > best_perform_sin:
+                                            best_perform_sin = performance["auc"]
                                             best_config_sin = config
-                                            best_perform_sin = performance
+                                            best_model_sin = sin_model
                         
-                        perform_sin = torch_classifier(config=best_config_sin,
-                                                    input_data=input_data,
-                                                    valid=False,
-                                                    random_seed=r,
-                                                    method="single")
+                        perform_sin = {**torch_performance(model=best_model_sin,
+                                                           x_test=x_test, y_test=y_test[:,0]),
+                                       **torch_performance(model=best_model_sin,
+                                                           x_test=x_test, y_test=y_test[:,-1],
+                                                           y_is_prob=True)}
+
                         results.loc[len(results.index)] = [n_patients, n_features, event_rate, 0, r] + \
                                                           [str(best_config_sin)] + \
-                                                          perform_sin + \
+                                                          list(perform_sin.values()) + \
                                                           list(s.values())
-                        
+
                     best_perform_mul = 0
-                    best_config_mul = {}
                     for lr in param_config["learning_rate"]:
                         for batch in param_config["batch_size"]:
                             for h in param_config["hidden_layers"]:
@@ -172,23 +182,28 @@ for event_rate in event_rate1:
                                         "hidden_layers": h,
                                         "regularization": lam,
                                     }
-                                    performance = torch_classifier(config=config,
-                                                                input_data=input_data,
-                                                                valid=True,
-                                                                random_seed=r,
-                                                                method="multi")
-                                    if performance>best_perform_mul:
+                                    mul_model = torch_classifier(x_train=x_train, y_train=y_train[:,:-1],
+                                                                 config=config,
+                                                                 random_seed=r,
+                                                                 method="multi")
+
+                                    performance = torch_performance(model=mul_model,
+                                                                    x_test=x_sub_val, y_test=y_sub_val[:,0])
+                                    if performance["auc"] > best_perform_mul:
+                                        best_perform_mul = performance["auc"]
                                         best_config_mul = config
-                                        best_perform_mul = performance
-                    perform_mul = torch_classifier(config=best_config_mul,
-                                                input_data=input_data,
-                                                valid=False,
-                                                random_seed=r,
-                                                method="multi")
+                                        best_model_mul = mul_model
+                    
+                    perform_mul = {**torch_performance(model=best_model_mul,
+                                                        x_test=x_test,y_test=y_test[:,0]),
+                                    **torch_performance(model=best_model_mul,
+                                                        x_test=x_test, y_test=y_test[:,-1],
+                                                        y_is_prob=True)}
+
                     results.loc[len(results.index)] = [n_patients, n_features, event_rate, ratio, r] + \
-                                                      [str(best_config_mul)] + \
-                                                      perform_mul + \
-                                                      list(s.values())
+                                                        [str(best_config_mul)] + \
+                                                        list(perform_mul.values()) + \
+                                                        list(s.values())
                     results.to_csv("test2.csv")
                 
                 single_first_time=False

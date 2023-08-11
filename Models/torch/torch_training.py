@@ -4,7 +4,10 @@ import pandas as pd
 import random
 import torch
 import torch.nn as nn
+import copy
+from itertools import product
 from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, average_precision_score, r2_score
 from scipy import stats
 
@@ -74,29 +77,21 @@ def torch_load(x_train: np.ndarray, y_train: np.ndarray, batch_size, random_seed
 
     return train_set
 
-def torch_classifier(config,
-                     input_data,
-                     valid,
+def torch_classifier(x_train, y_train,
+                     config, # [lr, batch, h, lam]
                      random_seed,
                      method,
-                     same_stop=True,
+                     event_idx,
                      max_epochs=200,
                      ):
 
     set_torch_seed(random_seed)
+    x_sub_train, x_sub_val,\
+    y_sub_train, y_sub_val = train_test_split(x_train, y_train,
+                                              random_state=random_seed,
+                                              test_size=0.25)
     
-    x_train = input_data["x_train"].astype('float32')
-    x_test = input_data["x_test"].astype('float32')
-    y_train = input_data["y_train"].astype('float32')
-    y_test = input_data["y_test"].astype('float32')
-
-    x_sub_train, x_sub_val = split_set(x_train, 0.75)
-    y_sub_train, y_sub_val = split_set(y_train, 0.75)
-    
-    learning_rate = config["learning_rate"]
-    batch_size = config["batch_size"]
-    hidden_layers = config["hidden_layers"]
-    regularization = config["regularization"]
+    learning_rate, batch_size, hidden_layers, regularization = config
 
     train_batch = torch_load(x_train=x_sub_train,
                             y_train=y_sub_train,
@@ -116,7 +111,7 @@ def torch_classifier(config,
             # train_loss = 0
             for X, Y in train_batch:
                 batch_loss = nn.functional.binary_cross_entropy(
-                    sin_decoder(sin_encoder(X)), Y[:, 0].reshape(-1,1)
+                    sin_decoder(sin_encoder(X)), Y[:,event_idx].reshape(-1,1),
                 )
                 regularization_loss = 0
                 for param in sin_encoder.parameters():
@@ -137,7 +132,7 @@ def torch_classifier(config,
     
             with torch.no_grad():
                 valid_loss = nn.functional.binary_cross_entropy(
-                    torch.from_numpy(y_sub_val[:,0].reshape(-1,1)),
+                    torch.from_numpy(y_sub_val[:,event_idx].reshape(-1,1)),
                     sin_decoder(sin_encoder(torch.from_numpy(x_sub_val))))
                 valid_loss = valid_loss.item()
                 # valid_loss_list.append(valid_loss)
@@ -150,97 +145,154 @@ def torch_classifier(config,
     
             if patience_counter >= patience:
                 break
-    
-        if valid:
-            with torch.no_grad():
-                pred = sin_decoder(sin_encoder(torch.from_numpy(x_sub_val)))
-            sin_auc = roc_auc_score(y_sub_val[:,0], pred)
-            
-            return sin_auc
-    
-        else:
-            with torch.no_grad():
-                pred = sin_decoder(sin_encoder(torch.from_numpy(x_test)))
-            sin_auc = roc_auc_score(y_test[:,0], pred)
-            sin_ap = average_precision_score(y_test[:,0], pred)
-            sin_r2 = r2_score(y_test[:,-1], pred)
-            sin_cov = stats.spearmanr(y_test[:,-1], pred).correlation
-            
-            return [sin_auc, sin_ap, sin_r2, sin_cov]
-    
+
+        sin_model = nn.Sequential(sin_encoder, sin_decoder)
+        return sin_model
+
     if method == "multi":
         # multi sigmoid learning
         best_loss = 1
         patience_counter = 0
         patience = 5
     
-        sig_encoder = Encoder([x_sub_train.shape[1]]+ hidden_layers)
-        sig_decoder = Decoder(hidden_layers+[y_sub_train.shape[1]-1], True)
-        sig_optimizer = torch.optim.Adam(list(sig_encoder.parameters())+list(sig_decoder.parameters()),
+        mul_encoder = Encoder([x_sub_train.shape[1]]+ hidden_layers)
+        mul_decoder = Decoder(hidden_layers+[y_sub_train.shape[1]], True)
+        mul_optimizer = torch.optim.Adam(list(mul_encoder.parameters())+list(mul_decoder.parameters()),
                                         lr=learning_rate)
         
         for e in range (max_epochs):
             # train_loss = 0
             for X, Y in train_batch:
                 batch_loss = nn.functional.binary_cross_entropy(
-                    sig_decoder(sig_encoder(X)), Y[:,:-1]
+                    mul_decoder(mul_encoder(X)), Y,
                 )
                 regularization_loss = 0
-                for param in sig_encoder.parameters():
+                for param in mul_encoder.parameters():
                     regularization_loss += torch.sum(torch.abs(param))
-                for param in sig_decoder.parameters():
+                for param in mul_decoder.parameters():
                     regularization_loss += torch.sum(torch.abs(param))
     
                 batch_loss += regularization * regularization_loss
     
-                sig_optimizer.zero_grad()
+                mul_optimizer.zero_grad()
                 batch_loss.backward()
-                sig_optimizer.step()
+                mul_optimizer.step()
     
                 # train_loss += batch_loss.item()
             # train_loss /= len(train_batch)
             # train_loss_list.append(train_loss)
+
+            valid_loss =nn.functional.binary_cross_entropy(
+                mul_decoder(mul_encoder(torch.from_numpy(x_sub_val)))[:,event_idx],
+                torch.from_numpy(y_sub_val)[:,event_idx],
+            )
+            if valid_loss < best_loss:
+                best_loss = valid_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+            if patience_counter >= patience:
+                break
     
-            if same_stop==True:
-                valid_loss =nn.functional.binary_cross_entropy(
-                    sig_decoder(sig_encoder(torch.from_numpy(x_sub_val)))[:,0],
-                    torch.from_numpy(y_sub_val[:,0]),
-                )
-                if valid_loss < best_loss:
-                    best_loss = valid_loss
-                    patience_counter = 0
-                else:
-                    patience_counter += 1
-                if patience_counter >= patience:
-                    break
+        mul_model = nn.Sequential(mul_encoder, mul_decoder)
+        return mul_model
     
-        if valid:
-            with torch.no_grad():
-                pred = sig_decoder(sig_encoder(torch.from_numpy(x_sub_val)))
-            mul_auc = roc_auc_score(y_sub_val[:,0], pred[:,0])
-            
-            return mul_auc
+def torch_performance(model,
+                      x_test, y_test,
+                      event_idx,
+                      y_is_prob=False):
+    with torch.no_grad():
+        pred = model(torch.from_numpy(x_test))[:,event_idx].reshape(-1,1)
+    if y_is_prob:
+        r2 = r2_score(y_test, pred)
+        cor = stats.spearmanr(y_test, pred).correlation
+        return {"r2": r2, "cov": cor}
+    else:
+        y_test = y_test[:,event_idx].reshape(-1,1)
+        auc = roc_auc_score(y_test, pred)
+        ap = average_precision_score(y_test, pred)
+        return {"auc": auc, "ap": ap}
+
+def make_ingredients(data_x, data_y,
+                     learning_method,
+                     event_idx,
+                     param_config, n_models):
+    fine_tuned_models = {}
+    model_val_perform = {}
+    rs, i = 0, 0
+    configs = list(product(*param_config.values()))
+    while i < n_models:
+        for config in configs:
+            i += 1
+            set_torch_seed(rs)
+            _, x_sub_val,\
+            _, y_sub_val = train_test_split(data_x, data_y,
+                                            random_state=rs,
+                                            test_size=0.25)
+            model = torch_classifier(x_train=data_x, y_train=data_y,
+                                     config=config,
+                                     random_seed=rs,
+                                     event_idx=event_idx,
+                                     method=learning_method)
+            performance = torch_performance(model=model,
+                                            x_test=x_sub_val,
+                                            y_test=y_sub_val,
+                                            event_idx=event_idx)
+            fine_tuned_models[f"model{i}"]=copy.deepcopy(model)
+            model_val_perform[f"model{i}"]=performance["auc"]
+        rs += 1
+    # ordered fine_tuned model by auc in valid set
+    model_rank = sorted(model_val_perform.keys(),
+                        key=lambda x: model_val_perform[x],
+                        reverse=True)
+    return fine_tuned_models, model_rank
     
+def make_uniform_soup(ingredients, rank_list):
+    n_models = len(rank_list)
+    for i in range(n_models):
+        model_ingredient = copy.deepcopy(ingredients[rank_list[i]])
+        if i == 0:
+            unif_model = copy.deepcopy(model_ingredient)
+            unif_param = model_ingredient.state_dict()
         else:
-            with torch.no_grad():
-                pred = sig_decoder(sig_encoder(torch.from_numpy(x_test)))[:,0]
-            mul_auc = roc_auc_score(y_test[:,0], pred)
-            mul_ap = average_precision_score(y_test[:,0], pred)
-            mul_r2 = r2_score(y_test[:,-1], pred)
-            mul_cov = stats.spearmanr(y_test[:,-1], pred).correlation        
-            
-            return [mul_auc, mul_ap, mul_r2, mul_cov]
+            ingredient_param = model_ingredient.state_dict()
+            for key in unif_param.keys():
+                unif_param[key] += ingredient_param[key]
+    for key in unif_param.keys():
+        unif_param[key] /= n_models
+    unif_model.load_state_dict(unif_param)
+    return unif_model
 
-    # if valid:
-    #     performance = [sin_auc, mul_auc]
-    # else:
-    #     performance = [sin_auc, sin_ap, sin_r2, sin_cov,
-    #                   mul_auc, mul_ap, mul_r2, mul_cov,
-    #     ]
-    # performance = [
-    #     sin_auc1, sig_auc1, smx_auc1, com_auc1, 
-    #     sin_ap1, sig_ap1, smx_ap1, com_ap1,
-    # ]
-        
-
-    # return performance
+def make_greedy_soup(ingredients, rank_list,
+                     greedy_val_x, greedy_val_y,
+                     val_idx):
+    n_models = len(rank_list)
+    for i in range(n_models):
+        model_ingredient = copy.deepcopy(ingredients[rank_list[i]])
+        if i == 0:
+            n_ingredient=1
+            greedy_model = copy.deepcopy(model_ingredient)
+            greedy_param = greedy_model.state_dict()
+            best_val_auc = torch_performance(model=greedy_model,
+                                             x_test=greedy_val_x,
+                                             y_test=greedy_val_y,
+                                             event_idx=val_idx)["auc"]
+        else:
+            greedy_model_tempo = copy.deepcopy(greedy_model)
+            ingredient_param = model_ingredient.state_dict()
+            greedy_param = greedy_model.state_dict()
+            greedy_param_tempo = greedy_model_tempo.state_dict()
+            for key in greedy_param_tempo.keys():
+                greedy_param_tempo[key] = (greedy_param[key]*n_ingredient+ingredient_param[key])/(n_ingredient+1)
+            greedy_model_tempo.load_state_dict(greedy_param_tempo)
+            valid_auc_tempo = torch_performance(model=greedy_model_tempo,
+                                                x_test=greedy_val_x,
+                                                y_test=greedy_val_y,
+                                                event_idx=val_idx)["auc"]
+            if valid_auc_tempo>=best_val_auc:
+                best_val_auc = valid_auc_tempo
+                greedy_model = copy.deepcopy(greedy_model_tempo)
+                n_ingredient+=1
+                print(i)
+    return greedy_model
+    
