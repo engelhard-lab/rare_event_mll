@@ -23,7 +23,7 @@ can lead to very long run time to complete all combinations."""
 
 # change similarity
 save_file = 'torch/sim.csv'  # saved inside Results/ folder
-n_patients = 50000  # n of samples to generate
+n_patients = 250000  # n of samples to generate
 n_features = 50  # n of features to generate
 event_rate1 = [0.01]  # event rate for sample
 er2_ratio = [5]
@@ -39,14 +39,14 @@ similarity_combos = [dict(zip(sim_keys, v)) for v in
                         itertools.product(*sim_values)]
 
 param_config = {
-    "learning_rate": [1e-3, 1e-4],
-    "batch_size": [64, 128, 256],
+    "learning_rate": [1e-3],
+    "batch_size": [128, 256],
     "hidden_layers": [[10]],
     "regularization": [1e-5],
 }
 param_config_soup = {
-    "learning_rate": [1e-3, 1e-4],
-    "batch_size": [64, 128, 256],
+    "learning_rate": [1e-3],
+    "batch_size": [128, 256],
     "hidden_layers": [[10]],
     "regularization": [1e-5],
 }
@@ -58,7 +58,7 @@ plot = False  # whether to plot details of each generated dataset
 run_combined = False
 loss_plot = False  # whether to plot learning loss
 early_stop = True  # whether to do early stopping in training
-n_models = 18   # n of soup ingredients
+n_models = 20   # n of soup ingredients
 columns = ['patients', 'features',
            'event_rate', 'er2_ratio',
            'iter',
@@ -70,7 +70,7 @@ results = pd.DataFrame(columns=columns + list(similarity_measures.keys()))
 
 start = time.time()
 for event_rate in event_rate1:
-    single_first_time = False
+    single_first_time = True
     for s in similarity_combos:
         for ratio in er2_ratio:
             for r in range(n_iters):
@@ -113,18 +113,18 @@ for event_rate in event_rate1:
                     # single
                     # baseline model with tuned hidden size
                     n_configs = len(list(itertools.product(*param_config.values())))
-                    ingredients, rank = make_ingredients(data_x=x_train,
+                    base_models, base_rank = make_ingredients(data_x=x_train,
                                                          data_y=y_train[:,:-1], # drop p1 in y
-                                                         event_idx=[0], # all valid on event0
+                                                         event_idx=[0], val_idx=[0],# all valid on event0
                                                          param_config=param_config, n_models=n_configs,
                                                          learning_method="single")
-                    base_model = copy.deepcopy(ingredients[rank[0]])
+                    base_model = copy.deepcopy(base_models[base_rank[0]])
                                        
                     # fix hidden size
                     # get n_models of fine_tuned models as soup ingredents
                     ingredients, rank = make_ingredients(data_x=x_train,
                                                    data_y=y_train[:,:-1], # drop p1 in y
-                                                   event_idx=[0],
+                                                   event_idx=[0], val_idx=[0],
                                                    param_config=param_config_soup, n_models=n_models,
                                                    learning_method="single")
                     # 4 methods of model soup
@@ -142,7 +142,7 @@ for event_rate in event_rate1:
                     for model_indiv in ensemble_set.values():
                         with torch.no_grad():
                             pred += model_indiv(torch.from_numpy((x_test)))[:,0]
-                    pred = (pred/n_models).reshape(-1,1)
+                    pred = (pred/len(ensemble_set)).reshape(-1,1)
                     auc = roc_auc_score(y_test[:,0], pred)
                     ap = average_precision_score(y_test[:,0], pred)
                     r2 = r2_score(y_test[:,-1], pred)
@@ -208,18 +208,18 @@ for event_rate in event_rate1:
                 # multi
                 # baseline model with tuned hidden size
                 n_configs = len(list(itertools.product(*param_config.values())))
-                ingredients, rank = make_ingredients(data_x=x_train,
+                base_models, base_rank = make_ingredients(data_x=x_train,
                                                      data_y=y_train[:,:-1], # drop p1 in y
-                                                     event_idx=[0],
+                                                     event_idx=[0], val_idx=[0],
                                                      param_config=param_config, n_models=n_configs,
                                                      learning_method="multi")
-                base_model = copy.deepcopy(ingredients[rank[0]])
+                base_model = copy.deepcopy(base_models[base_rank[0]])
                                     
                 # fix hidden size
                 # get n_models of fine_tuned models as soup ingredents
                 ingredients, rank = make_ingredients(data_x=x_train,
                                                 data_y=y_train[:,:-1], # drop p1 in y
-                                                event_idx=[0],
+                                                event_idx=[0], val_idx=[0],
                                                 param_config=param_config_soup, n_models=n_models,
                                                 learning_method="multi")
                 # 4 methods of model soup
@@ -237,7 +237,7 @@ for event_rate in event_rate1:
                 for model_indiv in ensemble_set.values():
                     with torch.no_grad():
                         pred += model_indiv(torch.from_numpy((x_test)))[:,0]
-                pred = (pred/n_models).reshape(-1,1)
+                pred = (pred/len(ensemble_set)).reshape(-1,1)
                 auc = roc_auc_score(y_test[:,0], pred)
                 ap = average_precision_score(y_test[:,0], pred)
                 r2 = r2_score(y_test[:,-1], pred)

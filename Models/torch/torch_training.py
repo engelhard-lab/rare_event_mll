@@ -81,15 +81,21 @@ def torch_classifier(x_train, y_train,
                      config, # [lr, batch, h, lam]
                      random_seed,
                      method,
-                     event_idx,
-                     max_epochs=200,
+                     event_idx, val_idx,
+                     epoch='dynamic',
                      ):
 
     set_torch_seed(random_seed)
-    x_sub_train, x_sub_val,\
-    y_sub_train, y_sub_val = train_test_split(x_train, y_train,
-                                              random_state=random_seed,
-                                              test_size=0.25)
+    if epoch == 'dynamic':
+        max_epochs = 200
+        x_sub_train, x_sub_val,\
+        y_sub_train, y_sub_val = train_test_split(x_train, y_train,
+                                                  random_state=random_seed,
+                                                  test_size=0.2)
+    else:
+        x_sub_train = x_train
+        y_sub_train = y_train
+        max_epochs = epoch
     
     learning_rate, batch_size, hidden_layers, regularization = config
 
@@ -97,13 +103,17 @@ def torch_classifier(x_train, y_train,
                             y_train=y_sub_train,
                             batch_size=batch_size,
                             random_seed=random_seed)
+    
     if method == "single":
         # single learning
-        best_loss = 1
+        best_loss = float('inf')
         patience = 5
         patience_counter = 0
+        
+        # train_loss_list = []
+        # valid_loss_list = []
     
-        sin_encoder = Encoder([x_sub_train.shape[1]]+ hidden_layers)
+        sin_encoder = Encoder([x_train.shape[1]]+ hidden_layers)
         sin_decoder = Decoder(hidden_layers+[1], True)
         sin_optimizer = torch.optim.Adam(list(sin_encoder.parameters())+list(sin_decoder.parameters()),
                                     lr=learning_rate)
@@ -129,29 +139,29 @@ def torch_classifier(x_train, y_train,
     
             # train_loss /= len(train_batch)
             # train_loss_list.append(train_loss)
-    
-            with torch.no_grad():
-                valid_loss = nn.functional.binary_cross_entropy(
-                    torch.from_numpy(y_sub_val[:,event_idx].reshape(-1,1)),
-                    sin_decoder(sin_encoder(torch.from_numpy(x_sub_val))))
-                valid_loss = valid_loss.item()
-                # valid_loss_list.append(valid_loss)
-            
-            if valid_loss < best_loss:
-                best_loss = valid_loss
-                patience_counter = 0
-            else:
-                patience_counter += 1
-    
-            if patience_counter >= patience:
-                break
+
+            if epoch == 'dynamic':
+                with torch.no_grad():
+                    valid_loss = nn.functional.binary_cross_entropy(
+                        torch.from_numpy(y_sub_val[:,event_idx].reshape(-1,1)),
+                        sin_decoder(sin_encoder(torch.from_numpy(x_sub_val))))
+                    valid_loss = valid_loss.item()
+                    # valid_loss_list.append(valid_loss)
+                if valid_loss < best_loss:
+                    best_loss = valid_loss
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+        
+                if patience_counter >= patience:
+                    break
 
         sin_model = nn.Sequential(sin_encoder, sin_decoder)
         return sin_model
 
     if method == "multi":
         # multi sigmoid learning
-        best_loss = 1
+        best_loss = float('inf')
         patience_counter = 0
         patience = 5
     
@@ -182,17 +192,19 @@ def torch_classifier(x_train, y_train,
             # train_loss /= len(train_batch)
             # train_loss_list.append(train_loss)
 
-            valid_loss =nn.functional.binary_cross_entropy(
-                mul_decoder(mul_encoder(torch.from_numpy(x_sub_val)))[:,event_idx],
-                torch.from_numpy(y_sub_val)[:,event_idx],
-            )
-            if valid_loss < best_loss:
-                best_loss = valid_loss
-                patience_counter = 0
-            else:
-                patience_counter += 1
-            if patience_counter >= patience:
-                break
+            if epoch == 'dynamic':
+                with torch.no_grad():
+                    valid_loss =nn.functional.binary_cross_entropy(
+                        mul_decoder(mul_encoder(torch.from_numpy(x_sub_val)))[:,val_idx],
+                        torch.from_numpy(y_sub_val)[:,val_idx],
+                    )
+                if valid_loss < best_loss:
+                    best_loss = valid_loss
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                if patience_counter >= patience:
+                    break
     
         mul_model = nn.Sequential(mul_encoder, mul_decoder)
         return mul_model
@@ -202,7 +214,9 @@ def torch_performance(model,
                       event_idx,
                       y_is_prob=False):
     with torch.no_grad():
-        pred = model(torch.from_numpy(x_test))[:,event_idx].reshape(-1,1)
+        pred = model(torch.from_numpy(x_test))
+        if pred.shape[1]>1:
+            pred = pred[:,event_idx].reshape(-1,1)
     if y_is_prob:
         r2 = r2_score(y_test, pred)
         cor = stats.spearmanr(y_test, pred).correlation
@@ -215,8 +229,9 @@ def torch_performance(model,
 
 def make_ingredients(data_x, data_y,
                      learning_method,
-                     event_idx,
-                     param_config, n_models):
+                     event_idx, val_idx,
+                     param_config, n_models,
+                     epoch='dynamic'):
     fine_tuned_models = {}
     model_val_perform = {}
     rs, i = 0, 0
@@ -233,7 +248,9 @@ def make_ingredients(data_x, data_y,
                                      config=config,
                                      random_seed=rs,
                                      event_idx=event_idx,
-                                     method=learning_method)
+                                     val_idx=val_idx,
+                                     method=learning_method,
+                                     epoch=epoch)
             performance = torch_performance(model=model,
                                             x_test=x_sub_val,
                                             y_test=y_sub_val,
@@ -296,3 +313,32 @@ def make_greedy_soup(ingredients, rank_list,
                 print(i)
     return greedy_model
     
+def make_greedy_ensemble(ingredients, rank_list,
+                     greedy_val_x, greedy_val_y,
+                     val_idx, learning_method):
+    if learning_method == "single":
+        val_idx = 0
+    n_models = len(rank_list)
+    ensemble_set = {}
+    for i in range(n_models):
+        model_ingredient = copy.deepcopy(ingredients[rank_list[i]])
+        if i == 0:
+            n_ingredient=1
+            ensemble_set[rank_list[i]] = copy.deepcopy(model_ingredient)
+            with torch.no_grad():
+                pred = model_ingredient(torch.from_numpy((greedy_val_x)))[:,val_idx].reshape(-1,1)
+            best_val_auc = roc_auc_score(greedy_val_y[:,val_idx], pred)
+        else:
+            set_tempo = copy.deepcopy(ensemble_set)
+            set_tempo[rank_list[i]] = copy.deepcopy(model_ingredient)
+            for model_indiv in set_tempo.values():
+                with torch.no_grad():
+                    pred += model_indiv(torch.from_numpy((greedy_val_x)))[:,val_idx].reshape(-1,1)
+            pred = (pred/(n_ingredient+1)).reshape(-1,1)
+            valid_auc_tempo = roc_auc_score(greedy_val_y[:,0], pred)
+            if valid_auc_tempo >= best_val_auc:
+                best_val_auc = valid_auc_tempo
+                ensemble_set = copy.deepcopy(set_tempo)
+                n_ingredient+=1
+                print(i)
+    return ensemble_set
