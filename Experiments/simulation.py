@@ -11,8 +11,8 @@ import sys
 # sys.path.append('')
 
 from generate_data import generate_data_shared_features, generate_data_linear
-from Classifier.linear import split_set, linear_classifier, torch_performance, set_torch_seed
-from Classifier.mlp import mlp_classifier
+from Models.torch.similar_weights.linear import split_set, linear_classifier, torch_performance, set_torch_seed
+from Models.torch.similar_weights.mlp import mlp_classifier, torch_performance, set_torch_seed
 """NOTE: the CWD needs to be set to the base directory. And you need to add
 the the path to rare_event_mll/ to your PYTHONPATH."""
 
